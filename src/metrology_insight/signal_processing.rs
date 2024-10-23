@@ -204,43 +204,38 @@ fn signal_peak(signal: &[i32], length: usize) -> f64 {
 	max_value
 }
 
-fn signal_power(signal1: &[i32], signal2: &[i32], length: usize, frequency: f64) -> f64 {
+fn signal_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64 {
 	let mut square: f64 = 0.0;
-	let mut d_length: f64 = 0.0;
-	let mut p_length: f64 = length as f64;
+	let mut n_length: f64 = 0.0; // Integer part
+	let mut d_length: f64 = 0.0; // Decimal part
+	let mut p_length: f64 = length_cycle as f64; // n + d length, fractional length of cycle
+	let mut ysample: f64 = 0.0; // Last interpolated y sample at fractinal x
 
-	// Si la frecuencia es mayor a 0, calcula las partes entera y decimal de la longitud del ciclo.
 	if frequency > 0.0 {
 		let cycle_length: f64 = ADC_SAMPLES_SECOND / frequency;
-		let n_length: f64 = cycle_length.floor();
+		n_length = cycle_length.floor();
 		d_length = cycle_length.fract();
 		p_length = n_length + d_length;
 	}
 	
-	// Calcular la suma de los productos RMS de la parte entera
-	for i in 0..length {
-		let sample1: f64 = signal1[i] as f64;
-		let sample2: f64 = signal2[i] as f64;
-		square += sample1 * sample2;
+    // Compute last interpolated sample
+    if d_length > 0.0 {// Only interpolate frac sample if fractional part of cycle length exists.
+        ysample = (((1.0-d_length)/2.0) * signal[n_length as usize - 1] as f64) + (((1.0 + d_length)/2.0) * signal[n_length as usize] as f64)
 	}
 
-	// Calcular la última muestra interpolada si existe parte fraccionaria
-	if d_length != 0.0 {
-		let ysample1: f64 = signal1[length - 1] as f64 + (signal1[length - 1] as f64 - signal1[length - 2] as f64) * d_length;
-		let ysample2: f64 = signal2[length - 1] as f64 + (signal2[length - 1] as f64 - signal2[length - 2] as f64) * d_length;
-		square += (ysample1 * ysample2) * d_length; 
+    // Compute RMS integer N part
+    for i in 0..n_length as u32 {
+        let sample = signal[i as usize] as f64;
+        square += sample.powi(2);
 	}
+	
+	square += ysample.powi(2) * d_length;
 
-	// Calcular la media
-	square / p_length
-}
+	// Calculate mean
+	let mean = square / p_length;
 
-
-fn signal_rms(signal: &[i32], length_cycle: usize, freq_zc: f64) -> f64 {
-	let power: f64 = signal_power(signal, signal, length_cycle, freq_zc);
-
-	if power > 0.0 {
-		power.sqrt() as f64
+	if mean > 0.0 {
+		mean.sqrt() as f64
 	} else {
 		0.0
 	}
