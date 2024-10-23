@@ -9,7 +9,7 @@ pub const ADC_VOLTAGE_D2A_FACTOR: f64 = 9289.14;
 /* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
 pub const ADC_CURRENTS_D2A_FACTOR: f64 = 1048.5760;
 
-const ADC_SAMPLES_SECOND: f64 =  7812.5;
+pub const ADC_SAMPLES_SECOND: f64 =  7812.5;
 
 const ADC_SAMPLES_50HZ_CYCLE: u32 = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
 const ADC_SAMPLES_60HZ_CYCLE: u32 = 131;
