@@ -1,5 +1,9 @@
 use super::signal_processing::{ADC_VOLTAGE_D2A_FACTOR, ADC_CURRENTS_D2A_FACTOR};
 
+fn rad_to_deg(x: f64) -> f64 {
+    (180.0 / std::f64::consts::PI) * x
+}
+
 pub fn calculate_real_power_from_signals(signal_v: &[i32], signal_i: &[i32], length: usize) -> f64 {
     let pfactor: f64 = ADC_VOLTAGE_D2A_FACTOR*ADC_CURRENTS_D2A_FACTOR;
 
@@ -69,5 +73,33 @@ pub fn calculate_phase_angle_from_power_factor_and_react_power(power_factor: f64
         }
 	}
 
-	return phase;
+	rad_to_deg(phase)
+}
+
+pub fn calculate_phase_angle_from_power_values(apparent_power: f64, active_power: f64, react_power: f64) -> f64 {
+	let mut phase: f64 = 0.0;
+
+	/* Angle can be calculated as
+	 * phase = acos(real_power/apparent_power) ; notes: lacks phi sign (can be solved with react_power sign)
+	 * phase = atan(react_power/real_power); notes: react_power might lack accuracy
+	 */
+	if apparent_power != 0.0 {
+		if active_power.abs() < apparent_power {
+			phase = (active_power/apparent_power).acos();
+			if react_power < 0.0 {
+				phase = -phase;
+            }
+		} else {
+			//Equal is possible, Bigger is not (if bigger condition happens it is probably due to rounding error)
+			phase = 0.0;
+		}
+	} else {
+		if active_power != 0.0 {
+			phase = (react_power/active_power).atan();
+		} else {
+			//phase cannot be calculated
+		}
+	}
+
+	rad_to_deg(phase)
 }

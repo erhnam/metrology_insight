@@ -1,4 +1,5 @@
 use crate::metrology_insight::signal_processing;
+use crate::metrology_insight::voltage_current;
 
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
@@ -164,7 +165,7 @@ fn short_circuit(signal: &[i32], length: usize) -> f64 {
 fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64) {
 	let mut integral: f64 = 0.0;
 	let mut integrated_signal: Vec<i32> = Vec::new();
-	let orms: f64 = signal_rms(signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
+	let orms: f64 = voltage_current::calculate_rms(signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
 
 	// Integración acumulativa por regla del trapecio
 	for i in 0..signal.len() {
@@ -178,7 +179,7 @@ fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64) {
 	signal_offset_remove(&mut integrated_signal);
 
 	// Escalar a 0 dB (atenuar frecuencias más altas): res_signal
-	let integral_rms: f64 = signal_rms(&integrated_signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
+	let integral_rms: f64 = voltage_current::calculate_rms(&integrated_signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
 
 	let int_k: f64 = if orms != 0.0 { integral_rms / orms } else { 1.0 };
 
@@ -191,56 +192,6 @@ fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64) {
 		signal[i] = integrated_signal[i] as i32;
 	}
 
-}
-
-fn signal_peak(signal: &[i32], length: usize) -> f64 {
-	let mut max_value = 0.0;
-
-	for &value in &signal[0..length] {
-		let abs_value = (value as f64).abs();
-		if abs_value > max_value {
-			max_value = abs_value;
-		}
-	}
-
-	max_value
-}
-
-fn signal_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64 {
-	let mut square: f64 = 0.0;
-	let mut n_length: f64 = 0.0; // Integer part
-	let mut d_length: f64 = 0.0; // Decimal part
-	let mut p_length: f64 = length_cycle as f64; // n + d length, fractional length of cycle
-	let mut ysample: f64 = 0.0; // Last interpolated y sample at fractinal x
-
-	if frequency > 0.0 {
-		let cycle_length: f64 = ADC_SAMPLES_SECOND / frequency;
-		n_length = cycle_length.floor();
-		d_length = cycle_length.fract();
-		p_length = n_length + d_length;
-	}
-	
-    // Compute last interpolated sample
-    if d_length > 0.0 {// Only interpolate frac sample if fractional part of cycle length exists.
-        ysample = (((1.0-d_length)/2.0) * signal[n_length as usize - 1] as f64) + (((1.0 + d_length)/2.0) * signal[n_length as usize] as f64)
-	}
-
-    // Compute RMS integer N part
-    for i in 0..n_length as u32 {
-        let sample = signal[i as usize] as f64;
-        square += sample.powi(2);
-	}
-	
-	square += ysample.powi(2) * d_length;
-
-	// Calculate mean
-	let mean = square / p_length;
-
-	if mean > 0.0 {
-		mean.sqrt() as f64
-	} else {
-		0.0
-	}
 }
 
 pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
@@ -284,10 +235,10 @@ pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor:
 		}
 
 		// Cálculo del pico
-		m_signal.peak = signal_peak(&signal.signal, signal.length_cycle) / calculated_adcfactor;
+		m_signal.peak = voltage_current::calculate_peak(&signal.signal, signal.length_cycle) / calculated_adcfactor;
 
 		// Cálculo del RMS
-		m_signal.rms = signal_rms(&signal.signal, signal.length_cycle, m_signal.freq_zc) / calculated_adcfactor;
+		m_signal.rms = voltage_current::calculate_rms(&signal.signal, signal.length_cycle, m_signal.freq_zc) / calculated_adcfactor;
 
 		// Asignar medidas a la señal (promediando)
 		average(m_signal.rms, &mut signal.rms, AVG_SEC);

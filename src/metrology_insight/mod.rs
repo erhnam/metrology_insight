@@ -1,8 +1,7 @@
 mod current;
-mod voltage;
+mod voltage_current;
 mod power;
 mod energy;
-mod phase;
 pub mod signal_processing;
 pub mod generate_signal;
 
@@ -16,29 +15,19 @@ pub struct MetrologyInsightSocket {
 
     // Señales de corriente
     current_signal: signal_processing::MetrologyInsightSignal,
-/*
-    // Ángulo fase a fase
-    c2v_angle: [f64; 3], // Diferencia de ángulo corriente a voltaje (para la misma fase)
-    voltage_angle: [f64; 3], // Ángulo de voltaje respecto a la fase 0 (voltage_angle[0] siempre es cero)
-    current_angle: [f64; 3], // Ángulo de corriente; I[0] es la referencia, así que current_angle[0] siempre es cero
-    v_ph2ph: [f64; 3], // Voltajes fase a fase
-    in_signals: f64, // I1 + I2 + I3 TRMS (debería ser igual al TRMS de I4)
-    in_homopolar: f64,
-    in_phases: f64,
 
-    // Componentes simétricas
-    v_phasor: [num_complex::Complex<f64>; 3], // Fasores de voltaje
-    i_phasor: [num_complex::Complex<f64>; 3], // Fasores de corriente
-    v_phasorsym: [num_complex::Complex<f64>; 3], // Fasores de voltaje de componentes simétricas
-    i_phasorsym: [num_complex::Complex<f64>; 3], // Fasores de corriente de componentes simétricas
-*/
-    // Potencias y energías
+    // Ángulo fase a fase
+    c2v_angle: f64, // Diferencia de ángulo corriente a voltaje (para la misma fase)
+    voltage_angle: f64, // Ángulo de voltaje respecto a la fase 0 (voltage_angle[0] siempre es cero)
+    current_angle: f64, // Ángulo de corriente; I[0] es la referencia, así que current_angle[0] siempre es cero
+
+    // Power
     active_power: f64,
     reactive_power: f64,
     apparent_power: f64,
     power_factor: f64, // Factor de potencia: cos(phi)
 
-    // Energías activas y reactivas por cuadrante
+    // Active and reactive energies by quadrant.
     active_energy_q1: f64,
     active_energy_q2: f64,
     active_energy_q3: f64,
@@ -48,18 +37,13 @@ pub struct MetrologyInsightSocket {
     reactive_energy_q3: f64,
     reactive_energy_q4: f64,
 
-    // Energías importadas, exportadas y balance de energía
+    // Imported energy, exported energy, and energy balance.
     energy_imported: f64,
     energy_exported: f64,
     active_energy_balance: f64,
     energy_capacitive: f64,
     energy_inductive: f64,
     reactive_energy_balance: f64,
-/*
-    // Configuración de fase
-    invert_phases: [bool; 3], // Array de inversión de fases
-    v_min_phases: [bool; 4],  // Array de fases con mínimo voltaje.
-*/
 }
 
 #[derive(Clone)]
@@ -102,6 +86,26 @@ impl MetrologyInsight {
         self.socket.power_factor = power::calculate_power_factor_from_apparent_and_real_power(
             self.socket.apparent_power,
             self.socket.active_power);
+
+        //When phase 1 voltage is not valid, use phase 1 current as reference angle. Lenght cycle and zc freq are the same on both voltage and current signals.
+        let voltage_angle = voltage_current::calculate_phase_angle_from_signal_values(
+            &self.socket.current_signal.signal,
+            &self.socket.voltage_signal.signal,
+            self.socket.voltage_signal.freq_zc,
+            self.socket.voltage_signal.length_cycle);
+
+        signal_processing::average(voltage_angle, &mut self.socket.voltage_angle, signal_processing::AVG_SEC);
+
+        let current_angle = voltage_current::calculate_phase_angle_from_signal_values(
+            &self.socket.current_signal.signal,
+            &self.socket.current_signal.signal,
+            self.socket.current_signal.freq_zc,
+            self.socket.current_signal.length_cycle);
+
+        signal_processing::average(current_angle, &mut self.socket.current_angle, signal_processing::AVG_SEC);
+
+        self.socket.c2v_angle = power::calculate_phase_angle_from_power_factor_and_react_power(self.socket.power_factor, self.socket.reactive_power);
+
     }
 
     pub fn calculate_energy_metrology(&mut self) {
@@ -114,11 +118,14 @@ impl MetrologyInsight {
         println!("\tPeak: {:?}", self.socket.voltage_signal.peak);
         println!("\tFz: {:?}", self.socket.voltage_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.voltage_signal.rms);
+        println!("\tAngle: {:?}", self.socket.voltage_angle);
         println!("Current: ");
         println!("\tPeak: {:?}", self.socket.current_signal.peak);
         println!("\tFz: {:?}", self.socket.current_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.current_signal.rms);
         println!("\tsc_thres: {:?}", self.socket.current_signal.sc_thres);
+        println!("\tAngle: {:?}", self.socket.current_angle);
+        println!("c2v Angle: {:?}\n", self.socket.c2v_angle);
     }
 
     pub fn print_power(&mut self) {
