@@ -58,7 +58,6 @@ pub fn calculate_power_factor_from_apparent_and_real_power(apparent_power: f64, 
 	return power_factor;
 }
 
-
 pub fn calculate_phase_angle_from_power_factor_and_react_power(power_factor: f64, react_power: f64) -> f64 {
 	let mut phase: f64 = 0.0;
 
