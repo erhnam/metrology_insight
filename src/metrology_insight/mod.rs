@@ -6,25 +6,25 @@ pub mod generate_signal;
 
 pub use generate_signal::generate_signals;
 
-/// Representa un socket trifásico con datos de corriente, voltaje, potencias y energía
+/// Represents a three-phase socket with current, voltage, power, and energy data.
 #[derive(Default, Clone)]
 pub struct MetrologyInsightSocket {
-    // Señales de voltaje
+    // Voltage signals
     voltage_signal: signal_processing::MetrologyInsightSignal,
 
-    // Señales de corriente
+    // Current signals
     current_signal: signal_processing::MetrologyInsightSignal,
 
-    // Ángulo fase a fase
-    c2v_angle: f64, // Diferencia de ángulo corriente a voltaje (para la misma fase)
-    voltage_angle: f64, // Ángulo de voltaje respecto a la fase 0 (voltage_angle[0] siempre es cero)
-    current_angle: f64, // Ángulo de corriente; I[0] es la referencia, así que current_angle[0] siempre es cero
+    // Phase angle to phase angle
+    c2v_angle: f64, // Current to voltage angle difference (for the same phase)
+    voltage_angle: f64, // Voltage angle relative to phase 0 (voltage_angle[0] is always zero)
+    current_angle: f64, // Current angle; I[0] is the reference, so current_angle[0] is always zero
 
     // Power
     active_power: f64,
     reactive_power: f64,
     apparent_power: f64,
-    power_factor: f64, // Factor de potencia: cos(phi)
+    power_factor: f64, // Power factor: cos(phi)
 
     // Active and reactive energies by quadrant.
     active_energy_q1: f64,
@@ -51,7 +51,6 @@ pub struct MetrologyInsight {
 }
 
 impl MetrologyInsight {
-    // Procesar señales y calcular métricas
     pub fn process_signal(&mut self, voltage_signal: signal_processing::MetrologyInsightSignal, current_signal: signal_processing::MetrologyInsightSignal) {
         self.socket = MetrologyInsightSocket {
             voltage_signal: voltage_signal,
