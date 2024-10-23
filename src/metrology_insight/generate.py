@@ -206,6 +206,68 @@ def powerReactiveSum(v, i, length):
 
     return pwr / pfactor
 
+
+def measuresCalculateActiveEnergyByCuadrant(real_power, reactive_power, e_quadrants, freq_zc):
+	# (3600 * 1000) is a constant used to convert joules to kilowatt-hours (kWh).
+	# 3600 is the number of seconds in an hour.
+	# Multiplying 3600 by 1000 gives the number of milliseconds in an hour, which equals 3.6 x 10^6 milliseconds.
+	# The unit of energy in joules is divided by this constant to convert the energy to kilowatt-hours.
+	# Since one kilowatt-hour is equal to 3.6 x 10^6 joules.
+	# samples_time is the time between samples.
+
+    samples_time = 1 / freq_zc;
+    energy = real_power * samples_time; # Energy in Joules
+    energy_kwh = energy / (3600.0 * 1000.0); # Energy in kWh
+
+    if (real_power > 0.0 and reactive_power > 0.0):
+        e_quadrants[0] += energy_kwh
+        return
+
+    if (real_power > 0.0 and reactive_power < 0.0):
+        e_quadrants[3] += energy_kwh
+        return
+
+    if (real_power < 0.0 and reactive_power > 0.0):
+        e_quadrants[1] += energy_kwh * (-1.0)
+        return
+
+    if (real_power < 0.0 and reactive_power < 0.0):
+        e_quadrants[2] += energy_kwh (-1.0)
+        return
+
+def measuresCalculateReactiveEnergyByCuadrant(real_power, reactive_power, re_quadrants, freq_zc):
+
+	# (3600 * 1000) is a constant used to convert joules to kilowatt-hours (kWh).
+	# 3600 is the number of seconds in an hour.
+	# Multiplying 3600 by 1000 gives the number of milliseconds in an hour, which equals 3.6 x 10^6 milliseconds.
+	# The unit of energy in joules is divided by this constant to convert the energy to kilowatt-hours.
+	# Since one kilowatt-hour is equal to 3.6 x 10^6 joules.
+	# samples_time is the time between samples.
+
+    samples_time = 1 / freq_zc;
+    energy = reactive_power * samples_time; # Energy in Joules
+    energy_kwh = energy / (3600.0 * 1000.0); # Energy in kWh
+
+    if (real_power > 0.0 and reactive_power > 0.0):
+        re_quadrants[0] += energy_kwh
+
+        return
+
+    if (real_power > 0.0 and reactive_power < 0.0):
+        re_quadrants[3] += energy_kwh  * (-1.0)
+
+        return
+
+    if (real_power < 0.0 and reactive_power > 0.0):
+        re_quadrants[1] += energy_kwh
+
+        return
+
+    if (real_power < 0.0 and reactive_power < 0.0):
+        re_quadrants[2] += energy_kwh  * (-1.0)
+
+        return
+    
 # GENERATE SIGNALS
 samples = np.arange(0, nSamples)
 
@@ -245,15 +307,15 @@ frequencyZC = signalFrequencyZC(signal_v)
 signal_i = signalIntegrate(signal_i, frequencyZC)
 
 print("\nVoltages")
-print("\t[peak: %f] " % (peak(signal_v) / VinToCounts))
-print("\t[Fz: %f]" % frequencyZC)
-print("\t[rms: %f]" % (signalRMS(signal_v, frequencyZC, int(Fs/F)) / VinToCounts) )    
+print("\t[peak: %.15f] " % (peak(signal_v) / VinToCounts))
+print("\t[Fz: %.15f]" % frequencyZC)
+print("\t[rms: %.15f]" % (signalRMS(signal_v, frequencyZC, int(Fs/F)) / VinToCounts) )    
 print("")
 
 print("\nCurrents")
-print("\t[peak: %f]" % (peak(signal_i) / AmpsToCounts))
-print("\t[Fz: %f]" % frequencyZC)
-print("\t[rms: %f]" % (signalRMS(signal_i, frequencyZC, int(Fs/F)) / AmpsToCounts) )    
+print("\t[peak: %.15f]" % (peak(signal_i) / AmpsToCounts))
+print("\t[Fz: %.15f]" % frequencyZC)
+print("\t[rms: %.15f]" % (signalRMS(signal_i, frequencyZC, int(Fs/F)) / AmpsToCounts) )    
 print("")
 
 # Powers
@@ -264,12 +326,36 @@ power_factor = 0.0
 
 print("\nPower")
 real_power = powerActiveSum(signal_v, signal_i, int(Fs/F))
-print("\t[Active: %f]" % real_power)
+print("\t[Active: %.15f]" % real_power)
 reactive_power = powerReactiveSum(signal_v, signal_i, int(Fs/F))
-print("\t[ReActive: %f]" % reactive_power)
+print("\t[ReActive: %.15f]" % reactive_power)
 apparent_power = powerApparentSum(real_power, reactive_power)
-print("\t[Apparent: %f]" % apparent_power)
+print("\t[Apparent: %.15f]" % apparent_power)
 power_factor = measurePowerFactorFromApparentPowerAndRealPower(apparent_power, real_power)
-print("\t[Factor: %f]" % power_factor)
+print("\t[Factor: %.15f]" % power_factor)
 print("")
 
+# Calculate Energy by Cuadrant
+e_quadrants = [0.0, 0.0, 0.0, 0.0]  # e_q1, e_q2, e_q3, e_q4
+re_quadrants = [0.0, 0.0, 0.0, 0.0]  # re_q1, re_q2, re_q3, re_q4
+
+measuresCalculateActiveEnergyByCuadrant(real_power, reactive_power, e_quadrants, frequencyZC)
+measuresCalculateReactiveEnergyByCuadrant(real_power, reactive_power, re_quadrants, frequencyZC)
+
+print("Energy")
+print("\tActive")
+print("\t\tImported: %.15e" % (e_quadrants[0] + e_quadrants[3]))
+print("\t\tExported: %.15e" % (e_quadrants[1] + e_quadrants[2]))
+print("\t\tBalanced: %.15e" % ((e_quadrants[0] + e_quadrants[3]) - (e_quadrants[1] + e_quadrants[2])))
+print("\t\tQ1: %.15e" % e_quadrants[0])
+print("\t\tQ2: %.15e" % e_quadrants[1])
+print("\t\tQ3: %.15e" % e_quadrants[2])
+print("\t\tQ4: %.15e" % e_quadrants[3])
+print("\tReactive")
+print("\t\tInductive: %.15e" % (re_quadrants[0] + re_quadrants[2]))
+print("\t\tCapacitive: %.15e" % (re_quadrants[1] + re_quadrants[3]))
+print("\t\tBalanced: %.15e" % ((re_quadrants[0] + re_quadrants[1]) - (re_quadrants[2] + re_quadrants[3])))
+print("\t\tQ1: %.15e" % re_quadrants[0])
+print("\t\tQ2: %.15e" % re_quadrants[1])
+print("\t\tQ3: %.15e" % re_quadrants[2])
+print("\t\tQ4: %.15e" % re_quadrants[3])

@@ -33,39 +33,29 @@ pub struct MetrologyInsightSocket {
     i_phasorsym: [num_complex::Complex<f64>; 3], // Fasores de corriente de componentes simétricas
 */
     // Potencias y energías
-    real_power: f64,
+    active_power: f64,
     reactive_power: f64,
     apparent_power: f64,
     power_factor: f64, // Factor de potencia: cos(phi)
-/*
-    // Energías activas y reactivas por cuadrante
-    active_energy_q1: [f64; 3],
-    active_energy_q2: [f64; 3],
-    active_energy_q3: [f64; 3],
-    active_energy_q4: [f64; 3],
-    reactive_energy_q1: [f64; 3],
-    reactive_energy_q2: [f64; 3],
-    reactive_energy_q3: [f64; 3],
-    reactive_energy_q4: [f64; 3],
 
-    // Energías activas y reactivas de las 3 fases por cuadrante
-    active_energy_q1_3phase: f64,
-    active_energy_q2_3phase: f64,
-    active_energy_q3_3phase: f64,
-    active_energy_q4_3phase: f64,
-    reactive_energy_q1_3phase: f64,
-    reactive_energy_q2_3phase: f64,
-    reactive_energy_q3_3phase: f64,
-    reactive_energy_q4_3phase: f64,
+    // Energías activas y reactivas por cuadrante
+    active_energy_q1: f64,
+    active_energy_q2: f64,
+    active_energy_q3: f64,
+    active_energy_q4: f64,
+    reactive_energy_q1: f64,
+    reactive_energy_q2: f64,
+    reactive_energy_q3: f64,
+    reactive_energy_q4: f64,
 
     // Energías importadas, exportadas y balance de energía
-    energy_imported: [f64; 3],
-    energy_exported: [f64; 3],
-    active_energy_balance: [f64; 3],
-    energy_capacitive: [f64; 3],
-    energy_inductive: [f64; 3],
-    reactive_energy_balance: [f64; 3],
-
+    energy_imported: f64,
+    energy_exported: f64,
+    active_energy_balance: f64,
+    energy_capacitive: f64,
+    energy_inductive: f64,
+    reactive_energy_balance: f64,
+/*
     // Configuración de fase
     invert_phases: [bool; 3], // Array de inversión de fases
     v_min_phases: [bool; 4],  // Array de fases con mínimo voltaje.
@@ -96,7 +86,7 @@ impl MetrologyInsight {
             &self.socket.current_signal.signal, 
             self.socket.voltage_signal.length_cycle);
 
-        signal_processing::average(real_power, &mut self.socket.real_power, signal_processing::AVG_SEC);
+        signal_processing::average(real_power, &mut self.socket.active_power, signal_processing::AVG_SEC);
 
         let react_power: f64 = power::calculate_react_power_from_signals(
             &self.socket.voltage_signal.signal,
@@ -106,12 +96,17 @@ impl MetrologyInsight {
         signal_processing::average(react_power, &mut self.socket.reactive_power, signal_processing::AVG_SEC);
 
         self.socket.apparent_power = power::calculate_apparent_power_from_real_and_reactive_power(
-            self.socket.real_power,
+            self.socket.active_power,
             self.socket.reactive_power);
 
         self.socket.power_factor = power::calculate_power_factor_from_apparent_and_real_power(
             self.socket.apparent_power,
-            self.socket.real_power);
+            self.socket.active_power);
+    }
+
+    pub fn calculate_energy_metrology(&mut self) {
+        energy::calculate_energy_by_cuadrant(&mut self.socket);
+        energy::calculate_energy(&mut self.socket);
     }
 
     pub fn print_signal(&mut self) {
@@ -128,9 +123,29 @@ impl MetrologyInsight {
 
     pub fn print_power(&mut self) {
         println!("Power: ");
-        println!("\tReal: {:?}", self.socket.real_power);
+        println!("\tActive: {:?}", self.socket.active_power);
         println!("\tReactive: {:?}", self.socket.reactive_power);
         println!("\tApparent: {:?}", self.socket.apparent_power);
         println!("\tFactor: {:?}", self.socket.power_factor);
+    }
+
+    pub fn print_energy(&mut self) {
+        println!("Energy: ");
+        println!("\tActive:");
+        println!("\t\tImported: {:?}", self.socket.energy_imported);
+        println!("\t\tExported: {:?}", self.socket.energy_exported);
+        println!("\t\tBalanced: {:?}", self.socket.active_energy_balance);
+        println!("\t\tQ1: {:?}", self.socket.active_energy_q1);
+        println!("\t\tQ2: {:?}", self.socket.active_energy_q2);
+        println!("\t\tQ3: {:?}", self.socket.active_energy_q3);
+        println!("\t\tQ4: {:?}", self.socket.active_energy_q4);
+        println!("\tReactive:");
+        println!("\t\tInductive: {:?}", self.socket.energy_inductive);
+        println!("\t\tCapacitive: {:?}", self.socket.energy_capacitive);
+        println!("\t\tBalanced: {:?}", self.socket.reactive_energy_balance);
+        println!("\t\tQ1: {:?}", self.socket.reactive_energy_q1);
+        println!("\t\tQ2: {:?}", self.socket.reactive_energy_q2);
+        println!("\t\tQ3: {:?}", self.socket.reactive_energy_q3);
+        println!("\t\tQ4: {:?}", self.socket.reactive_energy_q4);
     }
 }
