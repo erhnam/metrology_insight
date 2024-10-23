@@ -162,6 +162,50 @@ def signalRMS(signal, frequency, length):
 
     return rms
 
+def powerApparentSum(real_power, react_power):
+    return (math.sqrt((math.pow(real_power,2)+(math.pow(react_power,2)))))
+
+def powerActiveSum(v, i, length):
+    pwr = 0
+    pfactor = VinToCounts*AmpsToCounts
+
+    if (length > 0):
+        for counter in range(length):
+            pwr += float(v[counter]) * float(i[counter])
+
+        pwr = pwr/length
+
+    return pwr/pfactor
+
+def measurePowerFactorFromApparentPowerAndRealPower(apparent_power, real_power):
+    power_factor = 0
+
+    if(apparent_power != 0):
+        power_factor = real_power / apparent_power
+        if (power_factor > 1):
+            power_factor = 1
+
+        if (power_factor < -1):
+            power_factor = -1
+
+    return power_factor
+
+def powerReactiveSum(v, i, length):
+    pwr=0
+    dephase = int(length / float(4)+0.5) # 90 degrees (in samples) (round to nearest integer)
+    pfactor = VinToCounts*AmpsToCounts
+
+    if (length > 0):
+        for counter in range(length):
+            if (counter >= dephase):
+                pwr += float(v[counter]) * float(i[counter-dephase])
+            else:
+                pwr += float(v[counter]) * float(i[counter-dephase+length])
+
+        pwr = pwr/length
+
+    return pwr / pfactor
+
 # GENERATE SIGNALS
 samples = np.arange(0, nSamples)
 
@@ -176,58 +220,56 @@ signal_noise_v = voltage(VPEAK) * np.sin( offset(0) +(2 * np.pi*NOISE_Freq)/Fs *
 signal_noise_i = current(IPEAK) * np.sin( offset(0) +(2 * np.pi*NOISE_Freq)/Fs * samples) * NOISE_IPEAK_PERCENT
 
 # VOLTAGE
-signal_v1 = voltage(VPEAK) * np.sin( offset(0) + (2 * np.pi*F)/Fs * samples) + signal_noise_v + signal_noise_random
-signal_v2 = voltage(VPEAK) * np.sin( offset(120) + (2 * np.pi*F)/Fs * samples) + signal_noise_v + signal_noise_random
-signal_v3 = voltage(VPEAK) * np.sin( offset(240) + (2 * np.pi*F)/Fs * samples) + signal_noise_v + signal_noise_random
-signal_v4 = 0 * samples
+signal_v = voltage(VPEAK) * np.sin( offset(0) + (2 * np.pi*F)/Fs * samples) + signal_noise_v + signal_noise_random
 
 # CURRENT
-signal_i1 = current(IPEAK) * np.cos( offset(0+90) + offset(IPHASE) + (2 * np.pi*F)/Fs * samples) + signal_noise_i
-signal_i2 = current(IPEAK) * np.cos( offset(120+90) + offset(IPHASE) + (2 * np.pi*F)/Fs * samples) + signal_noise_i
-signal_i3 = current(IPEAK) * np.cos( offset(240+90) + offset(IPHASE) + (2 * np.pi*F)/Fs * samples) + signal_noise_i
-signal_i4 = 0 * samples
+signal_i = current(IPEAK) * np.cos( offset(0+90) + offset(IPHASE) + (2 * np.pi*F)/Fs * samples) + signal_noise_i
 
 # HARMONICS
 if ENABLE_HARMONICS:
-    signal_v1 += voltage(VHPEAK) * np.sin( offset(0) + (2 * np.pi*HARM_FREQ)/Fs * samples)
-    signal_v2 += voltage(VHPEAK) * np.sin( offset(120) + (2 * np.pi*HARM_FREQ)/Fs * samples)
-    signal_v3 += voltage(VHPEAK) * np.sin( offset(240) + (2 * np.pi*HARM_FREQ)/Fs * samples)
+    signal_v += voltage(VHPEAK) * np.sin( offset(0) + (2 * np.pi*HARM_FREQ)/Fs * samples)
 
-    signal_i1 += current(IHPEAK) * np.cos( offset(0+90) + offset(IPHASE) + (2 * np.pi*HARM_FREQ)/Fs * samples)
-    signal_i2 += current(IHPEAK) * np.cos( offset(120+90) + offset(IPHASE) + (2 * np.pi*HARM_FREQ)/Fs * samples)
-    signal_i3 += current(IHPEAK) * np.cos( offset(240+90) + offset(IPHASE) + (2 * np.pi*HARM_FREQ)/Fs * samples)
+    signal_i += current(IHPEAK) * np.cos( offset(0+90) + offset(IPHASE) + (2 * np.pi*HARM_FREQ)/Fs * samples)
 
-signals = [ signal_v1, signal_v2, signal_v3, signal_v4,
-            signal_i1, signal_i2, signal_i3, signal_i4]
-# ADD OFFSETS
-signals = [x+SAMPLES_OFFSET for x in signals]
+# Set offset
+signal_v = signal_v + SAMPLES_OFFSET
+signal_i = signal_i + SAMPLES_OFFSET
 
 # Truncate to integers (match devcie precision)
-signals = [np.trunc(x) for x in signals]
+signal_v = np.trunc(signal_v)
+signal_i = np.trunc(signal_i)
 
-frequencyZC = []
-for s in signals[0:4]:
-    frequencyZC.append(signalFrequencyZC(s))
+frequencyZC = signalFrequencyZC(signal_v)
 
 # Integrate Currents (match device algorithm)
-integrated_signals = []
-integrated_signals.append(signalIntegrate(signals[4], frequencyZC[4-4]))
-
-for i in range(4,8):
-    integrated_signals.append(signalIntegrate(signals[i], frequencyZC[i-4]))
-
-signals = signals[0:4] + integrated_signals
+signal_i = signalIntegrate(signal_i, frequencyZC)
 
 print("\nVoltages")
-for i in range(1):
-    print("\t[peak: %f] " % (peak(signals[i]) / VinToCounts))
-    print("\t[Fz: %f]" % frequencyZC[i])
-    print("\t[rms: %f]" % (signalRMS(signals[i], frequencyZC[i], int(Fs/F)) / VinToCounts) )    
-    print("")
+print("\t[peak: %f] " % (peak(signal_v) / VinToCounts))
+print("\t[Fz: %f]" % frequencyZC)
+print("\t[rms: %f]" % (signalRMS(signal_v, frequencyZC, int(Fs/F)) / VinToCounts) )    
+print("")
 
 print("\nCurrents")
-for i in range(4,5):
-    print("\t[peak: %f]" % (peak(signals[i]) / AmpsToCounts))
-    print("\t[Fz: %f]" % frequencyZC[i-4])
-    print("\t[rms: %f]" % (signalRMS(signals[i], frequencyZC[i-4], int(Fs/F)) / AmpsToCounts) )    
-    print("")
+print("\t[peak: %f]" % (peak(signal_i) / AmpsToCounts))
+print("\t[Fz: %f]" % frequencyZC)
+print("\t[rms: %f]" % (signalRMS(signal_i, frequencyZC, int(Fs/F)) / AmpsToCounts) )    
+print("")
+
+# Powers
+real_power = 0.0
+reactive_power = 0.0
+apparent_power = 0.0
+power_factor = 0.0
+
+print("\nPower")
+real_power = powerActiveSum(signal_v, signal_i, int(Fs/F))
+print("\t[Active: %f]" % real_power)
+reactive_power = powerReactiveSum(signal_v, signal_i, int(Fs/F))
+print("\t[ReActive: %f]" % reactive_power)
+apparent_power = powerApparentSum(real_power, reactive_power)
+print("\t[Apparent: %f]" % apparent_power)
+power_factor = measurePowerFactorFromApparentPowerAndRealPower(apparent_power, real_power)
+print("\t[Factor: %f]" % power_factor)
+print("")
+

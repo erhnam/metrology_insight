@@ -32,6 +32,7 @@ fn main() {
 
     // Llama a init con las configuraciones
     insight.process_signal(voltage_signal, current_signal);
-
+    insight.calculate_power_metrology();
     insight.print_signal();
+    insight.print_power();
 }

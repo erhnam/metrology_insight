@@ -3,6 +3,8 @@ use crate::metrology_insight::signal_processing;
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
 
+pub const AVG_SEC: f64 = 0.02;
+
 /* The ratio of the ADC to Voltage Values, used to scale samples to Volts. */
 pub const ADC_VOLTAGE_D2A_FACTOR: f64 = 9289.14;
 /* The ratio of the ADC to Current values, used to scale samples to Volts */
@@ -241,7 +243,7 @@ fn signal_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64 {
 	}
 }
 
-fn average(in_value: f64, out_value: &mut f64, avg: f64) {
+pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 	if *out_value == 0.0 { // Considerar como 0 si el valor de salida es 0
 		*out_value = in_value; // Inicializar el valor de salida
 	} else { // Si ya se ha inicializado el promedio
@@ -288,8 +290,8 @@ pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor:
 		m_signal.rms = signal_rms(&signal.signal, signal.length_cycle, m_signal.freq_zc) / calculated_adcfactor;
 
 		// Asignar medidas a la señal (promediando)
-		average(m_signal.rms, &mut signal.rms, 0.02);
-		average(m_signal.freq_zc, &mut signal.freq_zc, 0.02);
+		average(m_signal.rms, &mut signal.rms, AVG_SEC);
+		average(m_signal.freq_zc, &mut signal.freq_zc, AVG_SEC);
 
 		if m_signal.peak > signal.peak {
 			signal.peak = m_signal.peak;

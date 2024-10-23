@@ -31,17 +31,13 @@ pub struct MetrologyInsightSocket {
     i_phasor: [num_complex::Complex<f64>; 3], // Fasores de corriente
     v_phasorsym: [num_complex::Complex<f64>; 3], // Fasores de voltaje de componentes simétricas
     i_phasorsym: [num_complex::Complex<f64>; 3], // Fasores de corriente de componentes simétricas
-
+*/
     // Potencias y energías
-    real_power3phase: f64,       // Suma de potencias reales
-    reactive_power3phase: f64,   // Suma de potencias reactivas
-    apparent_power3phase: f64,   // Potencia aparente de las 3 fases
-    power_factor3phase: f64,     // Factor de potencia de las 3 fases
-    real_power: [f64; 3],
-    reactive_power: [f64; 3],
-    apparent_power: [f64; 3],
-    power_factor: [f64; 3], // Factor de potencia: cos(phi)
-
+    real_power: f64,
+    reactive_power: f64,
+    apparent_power: f64,
+    power_factor: f64, // Factor de potencia: cos(phi)
+/*
     // Energías activas y reactivas por cuadrante
     active_energy_q1: [f64; 3],
     active_energy_q2: [f64; 3],
@@ -94,6 +90,30 @@ impl MetrologyInsight {
         signal_processing::process_signal(&mut self.socket.current_signal, signal_processing::ADC_CURRENTS_D2A_FACTOR);
     }
 
+    pub fn calculate_power_metrology(&mut self) {
+        let real_power: f64 = power::calculate_real_power_from_signals(
+            &self.socket.voltage_signal.signal,
+            &self.socket.current_signal.signal, 
+            self.socket.voltage_signal.length_cycle);
+
+        signal_processing::average(real_power, &mut self.socket.real_power, signal_processing::AVG_SEC);
+
+        let react_power: f64 = power::calculate_react_power_from_signals(
+            &self.socket.voltage_signal.signal,
+            &self.socket.current_signal.signal, 
+            self.socket.voltage_signal.length_cycle);
+
+        signal_processing::average(react_power, &mut self.socket.reactive_power, signal_processing::AVG_SEC);
+
+        self.socket.apparent_power = power::calculate_apparent_power_from_real_and_reactive_power(
+            self.socket.real_power,
+            self.socket.reactive_power);
+
+        self.socket.power_factor = power::calculate_power_factor_from_apparent_and_real_power(
+            self.socket.apparent_power,
+            self.socket.real_power);
+    }
+
     pub fn print_signal(&mut self) {
         println!("Voltage: ");
         println!("\tPeak: {:?}", self.socket.voltage_signal.peak);
@@ -104,5 +124,13 @@ impl MetrologyInsight {
         println!("\tFz: {:?}", self.socket.current_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.current_signal.rms);
         println!("\tsc_thres: {:?}", self.socket.current_signal.sc_thres);
+    }
+
+    pub fn print_power(&mut self) {
+        println!("Power: ");
+        println!("\tReal: {:?}", self.socket.real_power);
+        println!("\tReactive: {:?}", self.socket.reactive_power);
+        println!("\tApparent: {:?}", self.socket.apparent_power);
+        println!("\tFactor: {:?}", self.socket.power_factor);
     }
 }
