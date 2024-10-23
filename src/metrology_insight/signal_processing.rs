@@ -116,7 +116,7 @@ fn signal_offset_remove(signal: &mut [i32]) {
 
 fn limit_length_to_cycles(length: usize, frequency: f64) -> usize {
 	let mut length_cycles: usize = 0;
-	let one_cycle: usize = (ADC_SAMPLES_SECOND / frequency).ceil() as usize;
+	let one_cycle: usize = (ADC_SAMPLES_SECOND / frequency).round() as usize;
 
 	while length_cycles + one_cycle <= length {
 		length_cycles += one_cycle;
