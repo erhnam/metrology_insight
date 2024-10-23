@@ -3,12 +3,10 @@ mod metrology_insight;
 use metrology_insight::signal_processing::MetrologyInsightSignal;
 
 fn main() {
-    let num_phases = 1; // Especificar el número de fases (1, 2 o 3)
-
-    let generated_signals = metrology_insight::generate_signals(num_phases);
+    let generated_signals = metrology_insight::generate_signals();
 
     let voltage_signal = MetrologyInsightSignal {
-        signal: generated_signals[(num_phases - 1) * 2].clone(),    // Buffer de la señal
+        signal: generated_signals[0].clone(),    // Buffer de la señal
         length: 177,          // Longitud del buffer de muestras (usualmente mayor a 1 ciclo)
         integrate: false,     // Indica si la señal debe ser integrada (e.g., para bobinas de Rogowski)
         calc_freq: true,      // Indica si la frecuencia debe ser calculada desde la señal
@@ -16,7 +14,7 @@ fn main() {
     };
 
     let current_signal = MetrologyInsightSignal {
-        signal: generated_signals[(num_phases - 1) * 2 + 1].clone(),    // Buffer de la señal
+        signal: generated_signals[1].clone(),    // Buffer de la señal
         length: 177,          // Longitud del buffer de muestras (usualmente mayor a 1 ciclo)
         integrate: true,      // Indica si la señal debe ser integrada (e.g., para bobinas de Rogowski)
         calc_freq: false,     // Indica si la frecuencia debe ser calculada desde la señal
@@ -25,7 +23,6 @@ fn main() {
 
     let mut insight = metrology_insight::MetrologyInsight {
         socket: Default::default(),
-        num_phases,
     };
 
     // Llama a init con las configuraciones

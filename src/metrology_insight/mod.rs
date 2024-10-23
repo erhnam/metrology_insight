@@ -49,7 +49,6 @@ pub struct MetrologyInsightSocket {
 #[derive(Clone)]
 pub struct MetrologyInsight {
     pub socket: MetrologyInsightSocket,
-    pub num_phases: usize,
 }
 
 impl MetrologyInsight {
