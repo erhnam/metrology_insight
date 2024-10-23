@@ -1,105 +1,114 @@
-use super::signal_processing::{ADC_VOLTAGE_D2A_FACTOR, ADC_CURRENTS_D2A_FACTOR};
+use crate::metrology_insight::types::*;
 
-fn rad_to_deg(x: f64) -> f64 {
-    (180.0 / std::f64::consts::PI) * x
+#[allow(dead_code)]
+
+/* ----------------- Real Power Functions ------------------ */
+
+/*
+* @brief Calculate the real power from RMS voltage, RMS current, and power factor.
+* @param voltage_rms RMS voltage
+* @param current_rms RMS current
+* @param power_factor Power factor
+* @return Real power in watts
+* @note The power factor should be between -1 and 1.
+ */
+fn real_power_from_rms_and_power_factor(voltage_rms: f64, current_rms: f64, power_factor: f64) -> f64 {
+    voltage_rms * current_rms * power_factor
 }
 
-pub fn calculate_real_power_from_signals(signal_v: &[i32], signal_i: &[i32], length: usize) -> f64 {
-    let pfactor: f64 = ADC_VOLTAGE_D2A_FACTOR*ADC_CURRENTS_D2A_FACTOR;
+/*
+* @brief Calculate the real power from RMS voltage and RMS current.
+* @param voltage_rms RMS voltage
+* @param current_rms RMS current
+* @return Real power in watts
+* @note This function assumes a power factor of 1.0 (purely resistive load).
+*/
+fn real_power_from_signals(signal_v: &[f64], signal_i: &[f64]) -> f64 {
+    if signal_v.is_empty() || signal_v.len() != signal_i.len() {
+        return 0.0; // o mejor: Option<f64> para manejar error
+    }
+    signal_v.iter().zip(signal_i.iter()).map(|(&v, &i)| v * i).sum::<f64>() / signal_v.len() as f64
+}
 
-    let mut power: f64 = 0.0;
-    if length > 0 {
-        for counter in 0..length {
-            power += signal_v[counter] as f64 * signal_i[counter] as f64;
-        }
+/* ----------------- React Power Functions ------------------ */
 
-        power = power / length as f64
+/*
+* @brief Calculate the apparent power from RMS voltage and RMS current.
+* @param voltage_rms RMS voltage
+* @param current_rms RMS current
+* @return Apparent power in volt-amperes (VA)
+* @note This function assumes a power factor of 1.0 (purely resistive load).
+*/
+fn reactive_power_from_apparent_and_active(apparent_power: f64, active_power: f64) -> f64 {
+    let mut react_power: f64 = 0.0;
+
+    if active_power < apparent_power {
+        react_power = (apparent_power.powi(2) - active_power.powi(2)).sqrt();
     }
 
-	power / pfactor
+    react_power
 }
 
-pub fn calculate_react_power_from_signals(v_signal: &[i32], i_signal: &[i32], length: usize) -> f64 {
-    let pfactor: f64 = ADC_VOLTAGE_D2A_FACTOR*ADC_CURRENTS_D2A_FACTOR;
+/* ----------------- Apparent Power Functions ------------------ */
 
-    let mut pwr: f64 = 0.0;
-    let dephase = ((length as f64 / 4.0).round()) as usize; // 90 grados (en muestras)
+/*
+* @brief Calculate the apparent power from RMS voltage and RMS current.
+* @param voltage_rms RMS voltage
+* @param current_rms RMS current
+* @return Apparent power in volt-amperes (VA)
+* @note This function assumes a power factor of 1.0 (purely resistive load).
+*/
+fn apparent_power_from_rms(voltage_rms: f64, current_rms: f64) -> f64 {
+    voltage_rms * current_rms
+}
 
-    if length > 0 {
-        for counter in 0..length {
-            if counter >= dephase {
-                pwr += v_signal[counter] as f64 * i_signal[counter - dephase] as f64;
-            } else {
-                pwr += v_signal[counter] as f64 * i_signal[counter + length - dephase] as f64;
-            }
-        }
+/* ----------------- Power Factor Functions ------------------ */
 
-        pwr /= length as f64;
+/*
+* @brief Calculate the apparent power from real and reactive power.
+* @param real_power Real power in watts
+* @param react_power Reactive power in volt-amperes reactive (VAR)
+* @return Apparent power in volt-amperes (VA)
+* @note This function assumes a power factor of 1.0 (purely resistive load).
+*/
+fn power_factor_from_apparent_and_real(apparent_power: f64, real_power: f64) -> f64 {
+    if apparent_power.abs() > 0.0 {
+        (real_power / apparent_power).clamp(-1.0, 1.0)
+    } else {
+        0.0
     }
-
-    pwr / pfactor
 }
 
-pub fn calculate_apparent_power_from_real_and_reactive_power(real_power: f64, react_power: f64) -> f64 {
-    (real_power.powi(2) + react_power.powi(2)).sqrt()
+/*
+* @brief Calculate the power factor from real and reactive power.
+* @param real_power Real power in watts
+* @param react_power Reactive power in volt-amperes reactive (VAR)
+* @return Power factor (dimensionless)
+*/
+fn calculate_all_power_metrics(
+    voltage_signal: &mut MetrologyInsightSignal,
+    current_signal: &mut MetrologyInsightSignal,
+) -> PowerMetrics {
+    // Real power a partir de RMS y factor de potencia
+    let real_power = real_power_from_signals(&voltage_signal.real_wave, &current_signal.real_wave);
+
+    // Potencia aparente a partir de RMS
+    let apparent_power = apparent_power_from_rms(voltage_signal.rms, current_signal.rms);
+
+    // Potencia reactiva a partir de aparente y real
+    let reactive_power = reactive_power_from_apparent_and_active(apparent_power, real_power);
+
+    // Factor de potencia recalculado para asegurar coherencia
+    let power_factor_calc = power_factor_from_apparent_and_real(apparent_power, real_power);
+
+    PowerMetrics {
+        real_power,
+        reactive_power,
+        apparent_power,
+        power_factor: power_factor_calc,
+    }
 }
 
-pub fn calculate_power_factor_from_apparent_and_real_power(apparent_power: f64, real_power: f64) -> f64 {
-	let mut power_factor: f64 = 0.0;
-
-	if apparent_power != 0.0 {
-		power_factor = real_power / apparent_power;
-		if  power_factor > 1.0 {
-			power_factor = 1.0;
-		}
-		if power_factor < -1.0 {
-			power_factor = -1.0;
-		}
-	} else {
-		//cannot calculate power factor
-	}
-
-	return power_factor;
-}
-
-pub fn calculate_phase_angle_from_power_factor_and_react_power(power_factor: f64, react_power: f64) -> f64 {
-	let mut phase: f64 = 0.0;
-
-	if power_factor <= 1.0 && power_factor >= -1.0 {
-		phase = power_factor.acos();
-
-		if react_power < 0.0 {
-			phase = -phase;
-        }
-	}
-
-	rad_to_deg(phase)
-}
-
-pub fn calculate_phase_angle_from_power_values(apparent_power: f64, active_power: f64, react_power: f64) -> f64 {
-	let mut phase: f64 = 0.0;
-
-	/* Angle can be calculated as
-	 * phase = acos(real_power/apparent_power) ; notes: lacks phi sign (can be solved with react_power sign)
-	 * phase = atan(react_power/real_power); notes: react_power might lack accuracy
-	 */
-	if apparent_power != 0.0 {
-		if active_power.abs() < apparent_power {
-			phase = (active_power/apparent_power).acos();
-			if react_power < 0.0 {
-				phase = -phase;
-            }
-		} else {
-			//Equal is possible, Bigger is not (if bigger condition happens it is probably due to rounding error)
-			phase = 0.0;
-		}
-	} else {
-		if active_power != 0.0 {
-			phase = (react_power/active_power).atan();
-		} else {
-			//phase cannot be calculated
-		}
-	}
-
-	rad_to_deg(phase)
+pub fn update_power_metrics(socket: &mut MetrologyInsightSocket) {
+    socket.power_metrics = calculate_all_power_metrics(&mut socket.voltage_signal, &mut socket.current_signal);
 }

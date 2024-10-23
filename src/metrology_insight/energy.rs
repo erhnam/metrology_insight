@@ -1,129 +1,105 @@
-use super::MetrologyInsightSocket;
+use crate::metrology_insight::types::*;
 
-fn calculate_active_energy_by_cuadrant(socket: &mut MetrologyInsightSocket) 
-{
-	/*
-	 * (3600 * 1000) is a constant used to convert joules to kilowatt-hours (kWh).
-	 * 3600 is the number of seconds in an hour.
-	 * Multiplying 3600 by 1000 gives the number of milliseconds in an hour, which equals 3.6 x 10^6 milliseconds.
-	 * The unit of energy in joules is divided by this constant to convert the energy to kilowatt-hours.
-	 * Since one kilowatt-hour is equal to 3.6 x 10^6 joules.
-	 * samples_time is the time between samples.
-	 */
-    let samples_time: f64 = 1.0/socket.voltage_signal.freq_zc;
-	let energy: f64 = socket.active_power * samples_time; // Energy in Joules
-	let energy_kwh: f64 = energy / (3600.0 * 1000.0); // Energy in kWh
+const JOULES_TO_KWH: f64 = 1.0 / (3600.0 * 1000.0); // Constant to convert Joules to kWh (1 kWh = 3.6e6 J)
 
-    if socket.active_power > 0.0 && socket.reactive_power > 0.0 {
-		socket.active_energy_q1 += energy_kwh;
-
-		return;
-	}
-
-	if socket.active_power > 0.0 && socket.reactive_power < 0.0 {
-		socket.active_energy_q4 += energy_kwh;
-
-		return;
-	}
-
-	if socket.active_power < 0.0 && socket.reactive_power > 0.0 {
-		socket.active_energy_q2 += energy_kwh * (-1.0);
-
-		return;
-	}
-
-	if socket.active_power < 0.0 && socket.reactive_power < 0.0 {
-		socket.active_energy_q3 += energy_kwh * (-1.0);
-
-		return;
-	}
+fn elapsed_time_seconds(socket: &MetrologyInsightSocket, adc_samples_second: f64) -> Option<f64> {
+    let samples_count = socket.voltage_signal.real_wave.len() as f64;
+    if samples_count == 0.0 || adc_samples_second == 0.0 {
+        None
+    } else {
+        let sample_duration = 1.0 / adc_samples_second; // duración de 1 muestra
+        Some(samples_count * sample_duration)
+    }
 }
 
-fn calculate_reactive_energy_by_cuadrant(socket: &mut MetrologyInsightSocket) 
-{
-	/*
-	 * (3600 * 1000) is a constant used to convert joules to kilowatt-hours (kWh).
-	 * 3600 is the number of seconds in an hour.
-	 * Multiplying 3600 by 1000 gives the number of milliseconds in an hour, which equals 3.6 x 10^6 milliseconds.
-	 * The unit of energy in joules is divided by this constant to convert the energy to kilowatt-hours.
-	 * Since one kilowatt-hour is equal to 3.6 x 10^6 joules.
-	 * samples_time is the time between samples.
-	 */
-    let samples_time: f64 = 1.0/socket.voltage_signal.freq_zc;
-	let energy: f64 = socket.reactive_power * samples_time; // Energy in Joules
-	let energy_kwh: f64 = energy / (3600.0 * 1000.0); // Energy in kWh
+/*
+* @brief Calculate the active and reactive energy by quadrant.
+* @param socket Pointer to the MetrologyInsightSocket structure.
+* @param adc_samples_second Number of ADC samples per second.
+* @note This function calculates the active and reactive energy for each quadrant
+*/
+fn active_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
+    if let Some(elapsed_time) = elapsed_time_seconds(socket, adc_samples_second) {
+        let energy_joules = socket.power_metrics.real_power * elapsed_time;
+        let energy_kwh = energy_joules * JOULES_TO_KWH;
 
-	if socket.active_power > 0.0 && socket.reactive_power > 0.0 {
-		socket.reactive_energy_q1 += energy_kwh;
-
-		return;
-	}
-
-	if socket.active_power > 0.0 && socket.reactive_power < 0.0 {
-		socket.reactive_energy_q4 += energy_kwh * (-1.0);
-
-		return;
-	}
-
-	if socket.active_power < 0.0 && socket.reactive_power > 0.0 {
-		socket.reactive_energy_q2 += energy_kwh;
-
-		return;
-	}
-
-	if socket.active_power < 0.0 && socket.reactive_power < 0.0 {
-		socket.reactive_energy_q3 += energy_kwh * (-1.0);
-
-		return;
-	}
+        if socket.power_metrics.real_power > 0.0 {
+            if socket.power_metrics.reactive_power > 0.0 {
+                socket.energy_metrics.active.q1 += energy_kwh;
+            } else if socket.power_metrics.reactive_power < 0.0 {
+                socket.energy_metrics.active.q4 += energy_kwh;
+            }
+        } else if socket.power_metrics.real_power < 0.0 {
+            if socket.power_metrics.reactive_power > 0.0 {
+                socket.energy_metrics.active.q2 -= energy_kwh * (-1.0);
+            } else if socket.power_metrics.reactive_power < 0.0 {
+                socket.energy_metrics.active.q3 -= energy_kwh * (-1.0);
+            }
+        }
+    }
 }
 
-pub fn calculate_energy_by_cuadrant(socket: &mut MetrologyInsightSocket) {
-    calculate_active_energy_by_cuadrant(socket);
-    calculate_reactive_energy_by_cuadrant(socket);
+/*
+* @brief Calculate the reactive energy by quadrant.
+* @param socket Pointer to the MetrologyInsightSocket structure.
+* @param adc_samples_second Number of ADC samples per second.
+* @note This function calculates the reactive energy for each quadrant.
+*/
+fn reactive_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
+    if let Some(elapsed_time) = elapsed_time_seconds(socket, adc_samples_second) {
+        let energy_joules = socket.power_metrics.reactive_power * elapsed_time;
+        let energy_kwh = energy_joules * JOULES_TO_KWH;
+
+        if socket.power_metrics.real_power > 0.0 {
+            if socket.power_metrics.reactive_power > 0.0 {
+                socket.energy_metrics.reactive.q1 += energy_kwh;
+            } else if socket.power_metrics.reactive_power < 0.0 {
+                socket.energy_metrics.reactive.q4 -= energy_kwh * (-1.0);
+            }
+        } else if socket.power_metrics.real_power < 0.0 {
+            if socket.power_metrics.reactive_power > 0.0 {
+                socket.energy_metrics.reactive.q2 += energy_kwh;
+            } else if socket.power_metrics.reactive_power < 0.0 {
+                socket.energy_metrics.reactive.q3 -= energy_kwh * (-1.0);
+            }
+        }
+    }
 }
 
-fn calculate_imported_energy(active_energy_q1: f64, active_energy_q4: f64) -> f64 {
-    active_energy_q1 + active_energy_q4
+/*
+* @brief Calculate the active and reactive energy by quadrant.
+* @param socket Pointer to the MetrologyInsightSocket structure.
+* @param adc_samples_second Number of ADC samples per second.
+* @note This function calculates the active and reactive energy for each quadrant.
+*/
+pub fn update_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
+    active_energy_by_quadrant(socket, adc_samples_second);
+    reactive_energy_by_quadrant(socket, adc_samples_second);
 }
 
-fn calculate_exported_energy(active_energy_q2: f64, active_energy_q3: f64) -> f64 {
-    active_energy_q2 + active_energy_q3
-}
+/*
+* @brief Calculate the total energy.
+* @param socket Pointer to the MetrologyInsightSocket structure.
+* @note This function calculates the total energy by summing the active and reactive energies.
+*/
+pub fn update_total_energy(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
+    update_energy_by_quadrant(socket, adc_samples_second);
 
-fn calculate_active_balance_energy(energy_imported: f64, energy_exported: f64) -> f64 {
-    energy_imported - energy_exported
-}
+    let active = &mut socket.energy_metrics.active;
+    let reactive = &mut socket.energy_metrics.reactive;
 
-fn calculate_inductive_energy(reactive_energy_q1: f64, reactive_energy_q3: f64) -> f64 {
-    reactive_energy_q1 + reactive_energy_q3
-}
-
-fn calculate_capacitive_energy(reactive_energy_q2: f64, reactive_energy_q4: f64) -> f64 {
-    reactive_energy_q2 + reactive_energy_q4
-}
-
-fn calculate_reactive_balance_energy(reactive_energy_q1: f64, reactive_energy_q2: f64, reactive_energy_q3: f64, reactive_energy_q4: f64) -> f64 {
-    (reactive_energy_q1 + reactive_energy_q2) - (reactive_energy_q3 + reactive_energy_q4)
-}
-
-pub fn calculate_energy(socket: &mut MetrologyInsightSocket)
-{
-    /* Imported energy */
-    socket.energy_imported = calculate_imported_energy(socket.active_energy_q1, socket.active_energy_q4);
-
-    /* Exported energy */
-    socket.energy_exported = calculate_exported_energy(socket.active_energy_q2, socket.active_energy_q3);
-
-    /* Active Balance energy */
-    socket.active_energy_balance = calculate_active_balance_energy(socket.energy_imported, socket.energy_exported);
-
-    /* Inductive energy */
-    socket.energy_inductive = calculate_inductive_energy(socket.reactive_energy_q1, socket.reactive_energy_q3);
-
-    /* Capacitive energy */
-    socket.energy_capacitive = calculate_capacitive_energy(socket.reactive_energy_q2, socket.reactive_energy_q4);
-
-    /* Reactive Balance energy */
-    socket.reactive_energy_balance = calculate_reactive_balance_energy(socket.reactive_energy_q1, socket.reactive_energy_q2, socket.reactive_energy_q3, socket.reactive_energy_q4);
+    socket.energy_metrics = EnergyMetrics {
+        active: ActiveEnergyMetrics {
+            imported: active.imported(),
+            exported: active.exported(),
+            balance: active.balance(),
+            ..active.clone()
+        },
+        reactive: ReactiveEnergyMetrics {
+            inductive: reactive.inductive(),
+            capacitive: reactive.capacitive(),
+            balance: reactive.balance(),
+            ..reactive.clone()
+        },
+    }
 }

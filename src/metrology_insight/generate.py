@@ -300,7 +300,7 @@ signal_i = signal_i + SAMPLES_OFFSET
 # Truncate to integers (match devcie precision)
 signal_v = np.trunc(signal_v)
 signal_i = np.trunc(signal_i)
-
+print(signal_i)
 frequencyZC = signalFrequencyZC(signal_v)
 
 # Integrate Currents (match device algorithm)

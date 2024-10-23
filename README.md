@@ -6,3 +6,10 @@
 - **Single-phase electrical parameter calculation:** Enables accurate calculations of voltages, currents, power (active, reactive, and apparent), and energy in single-phase systems.
 
 This crate is ideal for electrical engineering projects, residential or commercial installations, and energy management systems operating in single-phase environments.
+
+# Milk-v
+IP: 192.168.42.1
+
+```sh
+ssh root@192.168.42.1
+```
