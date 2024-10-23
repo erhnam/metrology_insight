@@ -14,8 +14,8 @@ pub const ADC_CURRENTS_D2A_FACTOR: f64 = 1048.5760;
 
 pub const ADC_SAMPLES_SECOND: f64 =  7812.5;
 
-const ADC_SAMPLES_50HZ_CYCLE: u32 = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
-const ADC_SAMPLES_60HZ_CYCLE: u32 = 131;
+const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
+const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
 const FREQ_ZC_DEBOUNCE: u32 = 5;
 const ZERO_CROSSING_MAX_POINTS: usize = 100; // Maximum number of zero crossing points to store
@@ -66,7 +66,7 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize) -> f64 {
 
             // Store the interpolation point
             if num_crossing < ZERO_CROSSING_MAX_POINTS {
-                interpolation_points[num_crossing] = xp;
+                interpolation_points.push(xp);
                 num_crossing += 1; // Increment the crossing counter
             }
 
@@ -81,12 +81,12 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize) -> f64 {
 
     // Calculate the frequency from the crossing points
     if num_crossing > 1 {
-        let mut sum: f64 = 0.0;
-        for p in 0..num_crossing - 1 {
-            sum += interpolation_points[p + 1] - interpolation_points[p];
-        }
-        let cycle_avg: f64 = (sum / (num_crossing - 1) as f64) * 2.0;
-        frequency = 1.0 / (cycle_avg / ADC_SAMPLES_SECOND);
+        let sum: f64 = interpolation_points
+            .windows(2)
+            .map(|window| window[1] - window[0])
+            .sum();
+        let cycle_avg = (sum / (num_crossing - 1) as f64) * 2.0; // Promedio de ciclos
+        frequency = ADC_SAMPLES_SECOND / cycle_avg; // Frecuencia
     }
 
     frequency
@@ -94,17 +94,19 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize) -> f64 {
 
 
 fn calculate_signal_frequency_nominal(freq_zc: f64, length: &mut usize, nominal_freq: f64) -> f64 {
-	let mut freq_nominal: f64 = FREQ_NOMINAL_50;
-	*length = ADC_SAMPLES_50HZ_CYCLE as usize;
+    let mut freq_nominal = FREQ_NOMINAL_50;
 
-	if is_frequency(freq_zc, FREQ_NOMINAL_60) {
-		freq_nominal = FREQ_NOMINAL_60;
-		if nominal_freq != FREQ_NOMINAL_60 {
-			*length = ADC_SAMPLES_60HZ_CYCLE as usize;
-		}
-	}
+    *length = ADC_SAMPLES_50HZ_CYCLE;
 
-	return freq_nominal;
+    if is_frequency(freq_zc, FREQ_NOMINAL_60) {
+        freq_nominal = FREQ_NOMINAL_60;
+
+        if nominal_freq != FREQ_NOMINAL_60 {
+            *length = ADC_SAMPLES_60HZ_CYCLE;
+        }
+    }
+
+    freq_nominal
 }
 
 fn signal_offset_remove(signal: &mut [i32]) {
@@ -118,26 +120,16 @@ fn signal_offset_remove(signal: &mut [i32]) {
 }
 
 fn limit_length_to_cycles(length: usize, frequency: f64) -> usize {
-	let mut length_cycles: usize = 0;
 	let one_cycle: usize = (ADC_SAMPLES_SECOND / frequency).round() as usize;
 
-	while length_cycles + one_cycle <= length {
-		length_cycles += one_cycle;
-	}
+    let length_cycles = (length / one_cycle) * one_cycle;
 
-	if length_cycles > length {
-		length_cycles = length;
-	}
-
-	length_cycles
+    length_cycles.min(length)
 }
 
 fn optimal_abs(value: i32) -> u32 {
-	let temp: i32 = value >> 31;
-	let toggled_value: i32 = value ^ temp;
-	let abs_value: i32 = toggled_value.wrapping_add(temp & 1);
-
-	abs_value as u32
+    let mask: i32 = value >> 31;
+    (value ^ mask).wrapping_add(mask) as u32
 }
 
 fn short_circuit(signal: &[i32], length: usize) -> f64 {
@@ -147,10 +139,11 @@ fn short_circuit(signal: &[i32], length: usize) -> f64 {
 		return 0.0;
 	}
 
-	let mut sorted_signal: Vec<u32> = signal.iter()
-		.take(length)
-		.map(|&s| optimal_abs(s))
-		.collect();
+    let mut sorted_signal: Vec<u32> = Vec::with_capacity(length);
+
+    for &s in signal.iter().take(length) {
+        sorted_signal.push(optimal_abs(s));
+    }
 
 	sorted_signal.sort();
 
