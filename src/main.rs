@@ -7,8 +7,6 @@ fn main() {
 
     let generated_signals = metrology_insight::generate_signals(num_phases);
 
-    //println!("V: {:?}\n", generated_signals[0]);
-    //println!("I: {:?}\n", generated_signals[1]);
     let voltage_signal = MetrologyInsightSignal {
         signal: generated_signals[(num_phases - 1) * 2].clone(),    // Buffer de la señal
         length: 177,          // Longitud del buffer de muestras (usualmente mayor a 1 ciclo)
@@ -27,7 +25,7 @@ fn main() {
 
     let mut insight = metrology_insight::MetrologyInsight {
         socket: Default::default(),
-        num_phases: num_phases,
+        num_phases,
     };
 
     // Llama a init con las configuraciones
