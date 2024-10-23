@@ -31,9 +31,7 @@ fn main() {
     };
 
     // Llama a init con las configuraciones
-    let mut insight = insight.init(voltage_signal, current_signal);
-
-    insight.process_signal();
+    insight.process_signal(voltage_signal, current_signal);
 
     insight.print_signal();
 }

@@ -83,19 +83,13 @@ pub struct MetrologyInsight {
 }
 
 impl MetrologyInsight {
-    // Inicializa los valores por defecto
-    pub fn init(&mut self, voltage_signal: signal_processing::MetrologyInsightSignal, current_signal: signal_processing::MetrologyInsightSignal) -> Self {
+    // Procesar señales y calcular métricas
+    pub fn process_signal(&mut self, voltage_signal: signal_processing::MetrologyInsightSignal, current_signal: signal_processing::MetrologyInsightSignal) {
         self.socket = MetrologyInsightSocket {
             voltage_signal: voltage_signal,
             current_signal: current_signal,
-            ..Default::default() // Usar valores por defecto para otros campos
+            ..Default::default()
         };
-        self.clone() // O simplemente `self`, si implementas `Copy`
-    }
-
-    // Procesar señales y calcular métricas
-    pub fn process_signal(&mut self) {
-        // Procesar las señales para la fase actual
         signal_processing::process_signal(&mut self.socket.voltage_signal, signal_processing::ADC_VOLTAGE_D2A_FACTOR);
         signal_processing::process_signal(&mut self.socket.current_signal, signal_processing::ADC_CURRENTS_D2A_FACTOR);
     }
