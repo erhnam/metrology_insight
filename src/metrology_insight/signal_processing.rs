@@ -1,18 +1,9 @@
-use crate::metrology_insight::signal_processing;
 use crate::metrology_insight::voltage_current;
 
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
 
 pub const AVG_SEC: f64 = 0.02;
-
-/* The ratio of the ADC to Voltage Values, used to scale samples to Volts. */
-pub const ADC_VOLTAGE_D2A_FACTOR: f64 = 9289.14;
-/* The ratio of the ADC to Current values, used to scale samples to Volts */
-/* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
-pub const ADC_CURRENTS_D2A_FACTOR: f64 = 1048.5760;
-
-pub const ADC_SAMPLES_SECOND: f64 =  7812.5;
 
 const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
 const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
@@ -45,7 +36,7 @@ fn is_frequency(freq: f64, nominal: f64) -> bool {
 	freq < (1.07 * nominal) && freq > (0.95 * nominal)
 }
 
-pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize) -> f64 {
+pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_second: f64) -> f64 {
     let mut num_crossing: usize = 0;
     let mut debounce: u32 = 0;
     let mut frequency: f64 = -1.0;
@@ -86,7 +77,7 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize) -> f64 {
             .map(|window| window[1] - window[0])
             .sum();
         let cycle_avg = (sum / (num_crossing - 1) as f64) * 2.0; // Promedio de ciclos
-        frequency = ADC_SAMPLES_SECOND / cycle_avg; // Frecuencia
+        frequency = adc_samples_second / cycle_avg; // Frecuencia
     }
 
     frequency
@@ -119,8 +110,8 @@ fn signal_offset_remove(signal: &mut [i32]) {
 	}
 }
 
-fn limit_length_to_cycles(length: usize, frequency: f64) -> usize {
-	let one_cycle: usize = (ADC_SAMPLES_SECOND / frequency).round() as usize;
+fn limit_length_to_cycles(length: usize, frequency: f64, adc_samples_second: f64) -> usize {
+	let one_cycle: usize = (adc_samples_second / frequency).round() as usize;
 
     let length_cycles = (length / one_cycle) * one_cycle;
 
@@ -152,10 +143,10 @@ fn short_circuit(signal: &[i32], length: usize) -> f64 {
 	threshold_adc_counts as f64
 }
 
-fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64) {
+fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64, adc_currents_d2a_factor: f64, adc_samples_second: f64) {
 	let mut integral: f64 = 0.0;
 	let mut integrated_signal: Vec<i32> = Vec::new();
-	let orms: f64 = voltage_current::calculate_rms(signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
+	let orms: f64 = voltage_current::calculate_rms(signal, length, freq_zc, adc_samples_second) / adc_currents_d2a_factor;
 
 	// Cumulative integration by trapezoid rule
 	for i in 0..signal.len() {
@@ -169,7 +160,7 @@ fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64) {
 	signal_offset_remove(&mut integrated_signal);
 
 	// Scale to 0 dB (attenuate higher frequencies): res_signal
-	let integral_rms: f64 = voltage_current::calculate_rms(&integrated_signal, length, freq_zc) / signal_processing::ADC_CURRENTS_D2A_FACTOR;
+	let integral_rms: f64 = voltage_current::calculate_rms(&integrated_signal, length, freq_zc, adc_samples_second) / adc_currents_d2a_factor;
 
 	let int_k: f64 = if orms != 0.0 { integral_rms / orms } else { 1.0 };
 
@@ -192,7 +183,7 @@ pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 		*out_value += avg * (in_value - old_value);
 	}
 }
-pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor: f64) {
+pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor: f64, adc_samples_second: f64) {
     let mut m_signal: MetrologyInsightSignal = MetrologyInsightSignal::default();
 
     if !signal.signal.is_empty() && signal.length > 0 {
@@ -200,21 +191,21 @@ pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor:
         signal_offset_remove(&mut signal.signal);
 
         // Zero crossing frequency needs to be calculated
-        m_signal.freq_zc = calculate_zero_crossing_freq(&signal.signal, signal.length);
+        m_signal.freq_zc = calculate_zero_crossing_freq(&signal.signal, signal.length, adc_samples_second);
         if m_signal.freq_zc == -1.0 {
             m_signal.freq_zc = FREQ_NOMINAL_50; // Assign nominal frequency in case of error
         }
 
         signal.freq_zc = m_signal.freq_zc; // Indicates the calculated frequency for this signal
         signal.freq_nominal = calculate_signal_frequency_nominal(m_signal.freq_zc, &mut signal.length, signal.freq_nominal);
-        signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal);
+        signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
         signal.length = signal.length_cycle + EXTRA_SAMPLES as usize;
 
         // TODO: Harmonics calculations
         // harmonics(signal, calculated_adcfactor, signal.integrate, m_signal.freq_zc);
 
         if signal.integrate {
-            signal_integrate(&mut signal.signal, signal.length_cycle, signal.freq_zc);
+            signal_integrate(&mut signal.signal, signal.length_cycle, signal.freq_zc, calculated_adcfactor, adc_samples_second);
         }
 
         // Short circuit measurement
@@ -226,7 +217,7 @@ pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor:
         m_signal.peak = voltage_current::calculate_peak(&signal.signal, signal.length_cycle) / calculated_adcfactor;
 
         // RMS calculation
-        m_signal.rms = voltage_current::calculate_rms(&signal.signal, signal.length_cycle, m_signal.freq_zc) / calculated_adcfactor;
+        m_signal.rms = voltage_current::calculate_rms(&signal.signal, signal.length_cycle, m_signal.freq_zc, adc_samples_second) / calculated_adcfactor;
 
         // Assign measurements to the signal (averaging)
         average(m_signal.rms, &mut signal.rms, AVG_SEC);

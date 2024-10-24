@@ -6,6 +6,17 @@ pub mod generate_signal;
 
 pub use generate_signal::generate_signals;
 
+/// Inititial configuration
+#[derive(Clone)]
+pub struct MetrologyInsightConfig {
+    pub avg_sec: f64,
+    pub adc_voltage_d2a_factor: f64,  /* The ratio of the ADC to Voltage Values, used to scale samples to Volts. */
+    pub adc_currents_d2a_factor: f64, /* The ratio of the ADC to Current values, used to scale samples to Volts */
+                                      /* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
+    pub adc_samples_seconds: f64,
+    pub num_harmonics: usize,
+}
+
 /// Represents a three-phase socket with current, voltage, power, and energy data.
 #[derive(Default, Clone)]
 pub struct MetrologyInsightSocket {
@@ -48,6 +59,7 @@ pub struct MetrologyInsightSocket {
 #[derive(Clone)]
 pub struct MetrologyInsight {
     pub socket: MetrologyInsightSocket,
+    pub config: MetrologyInsightConfig,
 }
 
 impl MetrologyInsight {
@@ -57,24 +69,26 @@ impl MetrologyInsight {
             current_signal: current_signal,
             ..Default::default()
         };
-        signal_processing::process_signal(&mut self.socket.voltage_signal, signal_processing::ADC_VOLTAGE_D2A_FACTOR);
-        signal_processing::process_signal(&mut self.socket.current_signal, signal_processing::ADC_CURRENTS_D2A_FACTOR);
+        signal_processing::process_signal(&mut self.socket.voltage_signal, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds);
+        signal_processing::process_signal(&mut self.socket.current_signal, self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds);
     }
 
     pub fn calculate_power_metrology(&mut self) {
+        let pfactor: f64 = self.config.adc_voltage_d2a_factor*self.config.adc_currents_d2a_factor;
+
         let real_power: f64 = power::calculate_real_power_from_signals(
             &self.socket.voltage_signal.signal,
             &self.socket.current_signal.signal, 
-            self.socket.voltage_signal.length_cycle);
+            self.socket.voltage_signal.length_cycle) / pfactor;
 
-        signal_processing::average(real_power, &mut self.socket.active_power, signal_processing::AVG_SEC);
+        signal_processing::average(real_power, &mut self.socket.active_power, self.config.avg_sec);
 
         let react_power: f64 = power::calculate_react_power_from_signals(
             &self.socket.voltage_signal.signal,
             &self.socket.current_signal.signal, 
-            self.socket.voltage_signal.length_cycle);
+            self.socket.voltage_signal.length_cycle,) / pfactor;
 
-        signal_processing::average(react_power, &mut self.socket.reactive_power, signal_processing::AVG_SEC);
+        signal_processing::average(react_power, &mut self.socket.reactive_power, self.config.avg_sec);
 
         self.socket.apparent_power = power::calculate_apparent_power_from_real_and_reactive_power(
             self.socket.active_power,
@@ -89,17 +103,19 @@ impl MetrologyInsight {
             &self.socket.current_signal.signal,
             &self.socket.voltage_signal.signal,
             self.socket.voltage_signal.freq_zc,
-            self.socket.voltage_signal.length_cycle);
+            self.socket.voltage_signal.length_cycle,
+        self.config.adc_samples_seconds);
 
-        signal_processing::average(voltage_angle, &mut self.socket.voltage_angle, signal_processing::AVG_SEC);
+        signal_processing::average(voltage_angle, &mut self.socket.voltage_angle, self.config.avg_sec);
 
         let current_angle = voltage_current::calculate_phase_angle_from_signal_values(
             &self.socket.current_signal.signal,
             &self.socket.current_signal.signal,
             self.socket.current_signal.freq_zc,
-            self.socket.current_signal.length_cycle);
+            self.socket.current_signal.length_cycle,
+            self.config.adc_samples_seconds);
 
-        signal_processing::average(current_angle, &mut self.socket.current_angle, signal_processing::AVG_SEC);
+        signal_processing::average(current_angle, &mut self.socket.current_angle, self.config.avg_sec);
 
         self.socket.c2v_angle = power::calculate_phase_angle_from_power_factor_and_react_power(self.socket.power_factor, self.socket.reactive_power);
 

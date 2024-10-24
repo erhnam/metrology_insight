@@ -25,11 +25,20 @@ fn main() {
         calc_freq: false,     // Indicates if the frequency should be calculated from the signal
         ..Default::default()  // The rest of the fields are initialized with their default values
     };
-    
+
+    let config = metrology_insight::MetrologyInsightConfig {
+            avg_sec: 0.02,
+            adc_voltage_d2a_factor: 9289.14,
+            adc_currents_d2a_factor: 1048.5760,
+            adc_samples_seconds: 7812.5,
+            num_harmonics: 0,
+    };
+
     let mut insight = metrology_insight::MetrologyInsight {
         socket: Default::default(),  // Default socket initialization
+        config: config,
     };
-    
+
     // Call init with the configurations
     insight.process_signal(voltage_signal, current_signal);  // Process the signals
     insight.calculate_power_metrology();  // Calculate power metrology

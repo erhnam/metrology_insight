@@ -1,12 +1,8 @@
-use super::signal_processing::{ADC_VOLTAGE_D2A_FACTOR, ADC_CURRENTS_D2A_FACTOR};
-
 fn rad_to_deg(x: f64) -> f64 {
     (180.0 / std::f64::consts::PI) * x
 }
 
 pub fn calculate_real_power_from_signals(signal_v: &[i32], signal_i: &[i32], length: usize) -> f64 {
-    let pfactor: f64 = ADC_VOLTAGE_D2A_FACTOR*ADC_CURRENTS_D2A_FACTOR;
-
     let mut power: f64 = 0.0;
     if length > 0 {
         for counter in 0..length {
@@ -16,12 +12,10 @@ pub fn calculate_real_power_from_signals(signal_v: &[i32], signal_i: &[i32], len
         power = power / length as f64
     }
 
-	power / pfactor
+	power
 }
 
 pub fn calculate_react_power_from_signals(v_signal: &[i32], i_signal: &[i32], length: usize) -> f64 {
-    let pfactor: f64 = ADC_VOLTAGE_D2A_FACTOR*ADC_CURRENTS_D2A_FACTOR;
-
     let mut pwr: f64 = 0.0;
     let dephase = ((length as f64 / 4.0).round()) as usize; // 90 grados (en muestras)
 
@@ -37,7 +31,7 @@ pub fn calculate_react_power_from_signals(v_signal: &[i32], i_signal: &[i32], le
         pwr /= length as f64;
     }
 
-    pwr / pfactor
+    pwr
 }
 
 pub fn calculate_apparent_power_from_real_and_reactive_power(real_power: f64, react_power: f64) -> f64 {

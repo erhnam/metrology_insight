@@ -1,4 +1,3 @@
-use super::signal_processing::ADC_SAMPLES_SECOND;
 use super::power;
 
 pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
@@ -14,7 +13,7 @@ pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
 	max_value
 }
 
-pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64 {
+pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64, adc_samples_second: f64) -> f64 {
 	let mut square: f64 = 0.0;
 	let mut n_length: f64 = 0.0; // Integer part
 	let mut d_length: f64 = 0.0; // Decimal part
@@ -22,7 +21,7 @@ pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64
 	let mut ysample: f64 = 0.0; // Last interpolated y sample at fractinal x
 
 	if frequency > 0.0 {
-		let cycle_length: f64 = ADC_SAMPLES_SECOND / frequency;
+		let cycle_length: f64 = adc_samples_second / frequency;
 		n_length = cycle_length.floor();
 		d_length = cycle_length.fract();
 		p_length = n_length + d_length;
@@ -51,10 +50,10 @@ pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64) -> f64
 	}
 }
 
-pub fn calculate_phase_angle_from_signal_values(signal1: &[i32], signal2: &[i32], freq_zc: f64, length: usize) -> f64 {
+pub fn calculate_phase_angle_from_signal_values(signal1: &[i32], signal2: &[i32], freq_zc: f64, length: usize, adc_samples_second: f64) -> f64 {
     //Calculate derived values
-    let rms1: f64 = calculate_rms(signal1, length, freq_zc);
-    let rms2: f64 = calculate_rms(signal2, length, freq_zc);
+    let rms1: f64 = calculate_rms(signal1, length, freq_zc, adc_samples_second);
+    let rms2: f64 = calculate_rms(signal2, length, freq_zc, adc_samples_second);
     let apparent_power: f64 = rms1 * rms2;
     let real_power: f64 = power::calculate_real_power_from_signals(signal1, signal2, length);
     let react_power: f64 = power::calculate_react_power_from_signals(signal1, signal2, length);
