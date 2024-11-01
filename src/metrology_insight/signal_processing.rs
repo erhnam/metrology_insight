@@ -44,7 +44,7 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
 
     for i in 0..length - 1 {
         // Detect a zero crossing
-        if (debounce == 0 && signal[i] > 0 && signal[i + 1] <= 0) || (signal[i] < 0 && signal[i + 1] >= 0) {
+        if debounce == 0 && ((signal[i] > 0 && signal[i + 1] <= 0) || (signal[i] < 0 && signal[i + 1] >= 0)) {
             // Interpolation to calculate the exact crossing point
             let x1: f64 = i as f64;
             let y1: f64 = signal[i] as f64;
@@ -57,7 +57,7 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
 
             // Store the interpolation point
             if num_crossing < ZERO_CROSSING_MAX_POINTS {
-                interpolation_points.push(xp);
+                interpolation_points[num_crossing] = xp;
                 num_crossing += 1; // Increment the crossing counter
             }
 
@@ -72,14 +72,14 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
 
     // Calculate the frequency from the crossing points
     if num_crossing > 1 {
-        let sum: f64 = interpolation_points
-            .windows(2)
-            .map(|window| window[1] - window[0])
-            .sum();
+        let mut sum = 0.0;
+        for p in 0..(num_crossing - 1)  {
+            sum += interpolation_points[p+1] - interpolation_points[p];
+        }
         let cycle_avg = (sum / (num_crossing - 1) as f64) * 2.0; // Promedio de ciclos
-        frequency = adc_samples_second / cycle_avg; // Frecuencia
-    }
 
+        frequency = 1.0 / (cycle_avg / adc_samples_second); // Frecuencia
+    }
     frequency
 }
 
@@ -183,6 +183,7 @@ pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 		*out_value += avg * (in_value - old_value);
 	}
 }
+
 pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor: f64, adc_samples_second: f64) {
     let mut m_signal: MetrologyInsightSignal = MetrologyInsightSignal::default();
 
