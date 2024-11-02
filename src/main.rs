@@ -13,8 +13,9 @@ const SAMPLES_PER_CYCLE: usize = 177;
 const SAMPLE_FREQUENCY: f64 = 7812.5;
 const TARGET_CYCLE_TIME_US: u128 = 113;
 const VOLTAGE_REF: f64 = 3.3;
+const ADC_VOLTAGE_OFFSET: u32 = 2048;
 const ADC_BIT_RESOLUTION: u32 = 4096;
-const ADC_VOLTAGE_FACTOR: f64 = (2048.0 * VOLTAGE_REF) / ADC_BIT_RESOLUTION as f64;
+const ADC_VOLTAGE_FACTOR: f64 = (ADC_VOLTAGE_OFFSET as f64 * VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64;
 const ADC_THRESHOLD: i32 = 40;
 
 fn main() {
@@ -43,17 +44,19 @@ fn main() {
     let adc_values: Arc<Mutex<Vec<i32>>> = Arc::new(Mutex::new(Vec::with_capacity(SAMPLES_PER_CYCLE)));
 
     // Channel for notifying the capture_samples thread
-    let (tx, rx): (mpsc::Sender<Instant>, mpsc::Receiver<Instant>) = mpsc::channel();
+    let (tx, rx): (mpsc::Sender<()>, mpsc::Receiver<()>) = mpsc::channel();
 
     let fd_clone = Arc::clone(&fd);
     let adc_values_clone: Arc<Mutex<Vec<i32>>> = Arc::clone(&adc_values);
 
     calibrate_sensor(fd.clone(), &mut adc_min_value,  &mut adc_max_value);
 
+    println!("Max value: {}", adc_max_value);
+    println!("Min value: {}", adc_min_value);
     // Thread to detect zero-crossing and notify the capture thread
     thread::spawn(move || {
         detect_zero_crossing(fd_clone, &adc_min_value, &adc_max_value, ADC_THRESHOLD);
-        tx.send(Instant::now()).expect("Zero-crossing notification send error");
+        tx.send(()).expect("Zero-crossing notification send error");
     });
 
     let fd_clone = Arc::clone(&fd);
@@ -76,9 +79,6 @@ fn main() {
      * Current Signal: generated_signals[1]
      */
     //let generated_signals_fake: Vec<Vec<i32>> = metrology_insight::generate_signals();
-   // println!("Señal: {:?}", adc_values.lock().unwrap());
-
-   // map_values_to_range(&mut adc_values.lock().unwrap());
 
     map_signal(&mut adc_values.lock().unwrap(), &adc_min_value, &adc_max_value);
     println!("Señal mapeada: {:?}", adc_values.lock().unwrap());
@@ -164,11 +164,13 @@ fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, adc_min_value: &i32, adc_
         let read_value: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer);
         let adc_value = read_value.trim().parse::<i32>().unwrap_or(0);
 
-        // Verificar que el valor actual esté en el rango y sea mayor que el anterior
         if let Some(prev) = previous_value {
-            if adc_value < median && adc_value > median - adc_threshold && adc_value > prev {
+            // Verificar que el adc_value esté dentro del rango deseado y sea mayor que el anterior
+            if adc_value < median 
+                && adc_value > median - adc_threshold 
+                && adc_value > prev 
+            {
                 println!("adc_value: {}", adc_value);
-
                 break;
             }
         }
@@ -181,12 +183,12 @@ fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, adc_min_value: &i32, adc_
 // Function for capturing samples in one cycle
 fn capture_samples(fd: Arc<Mutex<std::fs::File>>, adc_values: Arc<Mutex<Vec<i32>>>) {
     let start_time: Instant = Instant::now();
+    let mut buffer: [u8; 4] = [0; 4];
+    let mut fd_locked = fd.lock().unwrap();
 
     while adc_values.lock().unwrap().len() < SAMPLES_PER_CYCLE {
+        buffer.fill(0);
         let cycle_start = Instant::now();
-
-        let mut buffer: [u8; 4] = [0; 4];
-        let mut fd_locked = fd.lock().unwrap();
         fd_locked.seek(std::io::SeekFrom::Start(0)).expect("Seek error");
         fd_locked.read_exact(&mut buffer).expect("ADC read error");
 
@@ -206,8 +208,10 @@ fn capture_samples(fd: Arc<Mutex<std::fs::File>>, adc_values: Arc<Mutex<Vec<i32>
 }
 
 fn map_signal(array: &mut Vec<i32>, min_value: &i32, max_value: &i32) {
-    let min_range: i32 = -512; // nuevo rango mínimo
-    let max_range = 512;  // nuevo rango máximo
+    let range = ((max_value - min_value) * 2) - 120;
+    println!("Range: {}", range);
+    let max_range = range;  // nuevo rango máximo
+    let min_range: i32 = -range; // nuevo rango mínimo
 
     for value in array.iter_mut() {
         // Mapeo del valor al rango deseado (512 a -512)
@@ -221,8 +225,9 @@ fn calibrate_sensor(fd: Arc<Mutex<std::fs::File>>, min_value: &mut i32, max_valu
 
     let mut buffer: [u8; 4] = [0; 4];
 
-    for _ in 0..1024 {
+    for _ in 0..8192 {
         let mut fd_locked = fd.lock().unwrap();
+        buffer.fill(0);
         fd_locked.seek(std::io::SeekFrom::Start(0)).expect("Seek error");
         fd_locked.read_exact(&mut buffer).expect("ADC read error");
 
