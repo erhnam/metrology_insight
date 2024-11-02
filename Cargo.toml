@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 ndarray = "0.16.1"
+nix = "0.24.0"
 num-complex = "0.4.6"
 rand = "0.8.5"

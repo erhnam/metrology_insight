@@ -1,0 +1,7 @@
+#cargo +nightly build --release --target=riscv64gc-unknown-linux-musl -Zbuild-std=std
+#sshpass -p milkv scp target/riscv64gc-unknown-linux-musl/release/morse root@192.168.42.1:/root
+#sshpass -p milkv scp -O target/riscv64gc-unknown-linux-musl/release/morse root@192.168.42.1:/root
+#cargo build
+#sshpass -p milkv scp target/debug/morse root@192.168.42.1:/root
+cargo +nightly build --release --target=riscv64gc-unknown-linux-musl -Zbuild-std=std,core
+sshpass -p milkv scp -O target/riscv64gc-unknown-linux-musl/release/metrology_insight root@192.168.42.1:/root
