@@ -3,7 +3,7 @@ use std::fs::OpenOptions;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::sync::mpsc::{self, Sender, Receiver};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 mod metrology_insight;
@@ -11,12 +11,12 @@ use metrology_insight::signal_processing::MetrologyInsightSignal;
 
 const SAMPLES_PER_CYCLE: usize = 177;
 const SAMPLE_FREQUENCY: f64 = 7812.5;
-const TARGET_CYCLE_TIME_US: u128 = 113;
+const TARGET_CYCLE_TIME_US: u128 = 128;
 const VOLTAGE_REF: f64 = 3.3;
-const ADC_VOLTAGE_OFFSET: u32 = 2048;
-const ADC_BIT_RESOLUTION: u32 = 4096;
-const ADC_VOLTAGE_FACTOR: f64 = (ADC_VOLTAGE_OFFSET as f64 * VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64;
-const ADC_THRESHOLD: i32 = 40;
+const ADC_BIT_RESOLUTION: u32 = 4095;
+const ADC_OFFSET: f64 = 2048.0;
+const ADC_VOLTAGE_FACTOR: f64 = (ADC_OFFSET*VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64;
+const ADC_THRESHOLD: i32 = 10;
 
 fn main() {
     if is_module_loaded("cv180x_saradc") || is_module_loaded("cv181x_saradc") {
@@ -53,10 +53,10 @@ fn main() {
 
     println!("Max value: {}", adc_max_value);
     println!("Min value: {}", adc_min_value);
+
     // Thread to detect zero-crossing and notify the capture thread
     thread::spawn(move || {
-        detect_zero_crossing(fd_clone, &adc_min_value, &adc_max_value, ADC_THRESHOLD);
-        tx.send(()).expect("Zero-crossing notification send error");
+        detect_zero_crossing(fd_clone, tx, &adc_min_value, &adc_max_value, ADC_THRESHOLD);
     });
 
     let fd_clone = Arc::clone(&fd);
@@ -64,23 +64,23 @@ fn main() {
     // Capture thread waits for zero-crossing signal and then starts capturing samples
     let capture_handle = thread::spawn(move || {
         println!("Waiting for zero-crossing in capture thread...");
-
-        // Capture thread waits for the zero-crossing signal
-        rx.recv().expect("Failed to receive zero-crossing signal in capture thread");
         // Start capturing samples once zero-crossing is detected
-        capture_samples(fd_clone, adc_values_clone);
+        capture_samples(fd_clone, rx, adc_values_clone);
     });
 
     // Wait for the capture thread to finish
     capture_handle.join().expect("Failed to join capture thread");
+
     /* 
      * Test to generate signals, you should used your sensors
      * Voltage Signal: generated_signals[0]
      * Current Signal: generated_signals[1]
      */
     //let generated_signals_fake: Vec<Vec<i32>> = metrology_insight::generate_signals();
+    println!("Señal Raw: {:?}", adc_values.lock().unwrap());
 
     map_signal(&mut adc_values.lock().unwrap(), &adc_min_value, &adc_max_value);
+
     println!("Señal mapeada: {:?}", adc_values.lock().unwrap());
 
     let mut generated_signals: Vec<Vec<i32>> = Vec::with_capacity(2); // Vector que contendrá 2 vectores
@@ -149,12 +149,10 @@ fn load_module(module: &str) {
 }
 
 // Define the function that performs zero-crossing detection
-fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, adc_min_value: &i32, adc_max_value: &i32, adc_threshold: i32) {
+fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, tx: mpsc::Sender<()>, adc_min_value: &i32, adc_max_value: &i32, adc_threshold: i32) {
     let mut buffer: [u8; 4] = [0; 4];
     let median = (adc_max_value + adc_min_value) / 2;
     println!("median: {}", median);
-
-    let mut previous_value: Option<i32> = None; // Para almacenar el valor anterior
 
     loop {
         let mut fd_locked = fd.lock().unwrap();
@@ -164,26 +162,20 @@ fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, adc_min_value: &i32, adc_
         let read_value: std::borrow::Cow<'_, str> = String::from_utf8_lossy(&buffer);
         let adc_value = read_value.trim().parse::<i32>().unwrap_or(0);
 
-        if let Some(prev) = previous_value {
-            // Verificar que el adc_value esté dentro del rango deseado y sea mayor que el anterior
-            if adc_value < median 
-                && adc_value > median - adc_threshold 
-                && adc_value > prev 
-            {
-                println!("adc_value: {}", adc_value);
-                break;
-            }
+        // Verificar que el adc_value esté dentro del rango deseado y sea mayor que el anterior
+        if adc_value < median && adc_value > median - adc_threshold  {
+            tx.send(()).expect("Zero-crossing notification send error");
+            break;
         }
-
-        // Actualiza el valor anterior
-        previous_value = Some(adc_value);
     }
 }
 
 // Function for capturing samples in one cycle
-fn capture_samples(fd: Arc<Mutex<std::fs::File>>, adc_values: Arc<Mutex<Vec<i32>>>) {
-    let start_time: Instant = Instant::now();
+fn capture_samples(fd: Arc<Mutex<std::fs::File>>, rx: mpsc::Receiver<()>, adc_values: Arc<Mutex<Vec<i32>>>) {
     let mut buffer: [u8; 4] = [0; 4];
+    rx.recv().expect("Failed to receive zero-crossing signal in capture thread");
+    let start_time: Instant = Instant::now();
+
     let mut fd_locked = fd.lock().unwrap();
 
     while adc_values.lock().unwrap().len() < SAMPLES_PER_CYCLE {
@@ -198,10 +190,12 @@ fn capture_samples(fd: Arc<Mutex<std::fs::File>>, adc_values: Arc<Mutex<Vec<i32>
 
         //adc_values.lock().unwrap().push(map_value_to_centered_range(adc_value));
         adc_values.lock().unwrap().push(adc_value);
+
         let elapsed_time_us = cycle_start.elapsed().as_micros();
         if elapsed_time_us < TARGET_CYCLE_TIME_US {
             delay_microseconds(TARGET_CYCLE_TIME_US - elapsed_time_us);
         }
+
     }
     // Imprimir el tiempo transcurrido en milisegundos
     println!("Captura completada en {} ms",  (start_time.elapsed().as_micros() / 1000) as f64);
@@ -225,7 +219,7 @@ fn calibrate_sensor(fd: Arc<Mutex<std::fs::File>>, min_value: &mut i32, max_valu
 
     let mut buffer: [u8; 4] = [0; 4];
 
-    for _ in 0..8192 {
+    for _ in 0..16384 {
         let mut fd_locked = fd.lock().unwrap();
         buffer.fill(0);
         fd_locked.seek(std::io::SeekFrom::Start(0)).expect("Seek error");
