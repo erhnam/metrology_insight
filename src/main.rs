@@ -14,7 +14,7 @@ const SAMPLE_FREQUENCY: f64 = 7812.5;
 const TARGET_CYCLE_TIME_US: u128 = 128;
 const VOLTAGE_REF: f64 = 3.3;
 const ADC_BIT_RESOLUTION: u32 = 4095;
-const ADC_OFFSET: f64 = 2048.0;
+const ADC_OFFSET: f64 = 512.0;
 const ADC_VOLTAGE_FACTOR: f64 = (ADC_OFFSET*VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64;
 const ADC_THRESHOLD: i32 = 10;
 
@@ -26,7 +26,6 @@ fn main() {
         load_module("cv181x_saradc");
         println!("Módulo SARADC cargado.");
     }
-    
     // Initialize ADC device and values vector (details omitted for brevity)
     let fd = Arc::new(Mutex::new(
         OpenOptions::new()
@@ -35,6 +34,7 @@ fn main() {
             .open("/sys/class/cvi-saradc/cvi-saradc0/device/cv_saradc")
             .expect("Error opening ADC device"),
     ));
+
     let mut adc_min_value: i32 = i32::MIN;
     let mut adc_max_value: i32 = i32::MAX;
 
@@ -71,17 +71,14 @@ fn main() {
     // Wait for the capture thread to finish
     capture_handle.join().expect("Failed to join capture thread");
 
+    /* Library Use */
     /* 
      * Test to generate signals, you should used your sensors
      * Voltage Signal: generated_signals[0]
      * Current Signal: generated_signals[1]
      */
     //let generated_signals_fake: Vec<Vec<i32>> = metrology_insight::generate_signals();
-    println!("Señal Raw: {:?}", adc_values.lock().unwrap());
-
-    map_signal(&mut adc_values.lock().unwrap(), &adc_min_value, &adc_max_value);
-
-    println!("Señal mapeada: {:?}", adc_values.lock().unwrap());
+    println!("Signal: {:?}", adc_values.lock().unwrap());
 
     let mut generated_signals: Vec<Vec<i32>> = Vec::with_capacity(2); // Vector que contendrá 2 vectores
     generated_signals.push(adc_values.lock().unwrap().clone()); // First vector
@@ -199,18 +196,6 @@ fn capture_samples(fd: Arc<Mutex<std::fs::File>>, rx: mpsc::Receiver<()>, adc_va
     }
     // Imprimir el tiempo transcurrido en milisegundos
     println!("Captura completada en {} ms",  (start_time.elapsed().as_micros() / 1000) as f64);
-}
-
-fn map_signal(array: &mut Vec<i32>, min_value: &i32, max_value: &i32) {
-    let range = ((max_value - min_value) * 2) - 120;
-    println!("Range: {}", range);
-    let max_range = range;  // nuevo rango máximo
-    let min_range: i32 = -range; // nuevo rango mínimo
-
-    for value in array.iter_mut() {
-        // Mapeo del valor al rango deseado (512 a -512)
-        *value = (((*value - *min_value) as f32 / (*max_value - *min_value) as f32) * (max_range - min_range) as f32 + min_range as f32) as i32;
-    }
 }
 
 fn calibrate_sensor(fd: Arc<Mutex<std::fs::File>>, min_value: &mut i32, max_value: &mut i32) {
