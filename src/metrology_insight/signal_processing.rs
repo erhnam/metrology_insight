@@ -1,10 +1,4 @@
 use crate::metrology_insight::voltage_current;
-use lazy_static::lazy_static;
-use std::sync::Mutex;
-
-lazy_static! {
-    static ref M_SIGNAL: Mutex<MetrologyInsightSignal> = Mutex::new(MetrologyInsightSignal::default());
-}
 
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
@@ -191,8 +185,8 @@ pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 }
 
 pub fn process_signal(signal: &mut MetrologyInsightSignal, calculated_adcfactor: f64, adc_samples_second: f64) {
-    let mut m_signal = M_SIGNAL.lock().unwrap(); // Bloquea el Mutex para acceder a m_signal
-    
+    let mut m_signal: MetrologyInsightSignal = MetrologyInsightSignal::default();
+
     if !signal.signal.is_empty() && signal.length > 0 {
         // Remove the offset from the signal
         signal_offset_remove(&mut signal.signal);
