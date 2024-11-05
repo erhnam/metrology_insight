@@ -52,8 +52,8 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
             let y2: f64 = signal[i + 1] as f64;
 
             // Interpolate the zero crossing
-            let yp: f64 = 0.0; // Value in y at the zero crossing
-            let xp: f64 = x1 + (yp - y1) * ((x2 - x1) / (y2 - y1));
+            let yp: f64 = 0.0;
+            let xp: f64 = x1 + (yp - y1) / ((y2 - y1) / (x2 - x1));
 
             // Store the interpolation point
             if num_crossing < ZERO_CROSSING_MAX_POINTS {
