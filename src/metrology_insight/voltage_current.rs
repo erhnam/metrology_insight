@@ -33,8 +33,8 @@ pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64, adc_sa
 	}
 
     // Compute RMS integer N part
-    for i in 0..n_length as u32 {
-        let sample = signal[i as usize] as f64;
+    for i in 0..n_length as usize {
+        let sample = signal[i] as f64;
         square += sample.powi(2);
 	}
 	

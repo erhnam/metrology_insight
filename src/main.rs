@@ -14,8 +14,8 @@ const SAMPLE_FREQUENCY: f64 = 7812.5;
 const TARGET_CYCLE_TIME_US: u128 = 128;
 const VOLTAGE_REF: f64 = 3.3;
 const ADC_BIT_RESOLUTION: u32 = 4095;
-const ADC_OFFSET: f64 = 512.0;
-const ADC_VOLTAGE_FACTOR: f64 = (ADC_OFFSET*VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64;
+const ADC_OFFSET: f64 = 540.0;
+const ADC_VOLTAGE_FACTOR: f64 = (ADC_OFFSET*VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64; //0,435164835
 const ADC_THRESHOLD: i32 = 10;
 
 fn main() {
@@ -43,69 +43,16 @@ fn main() {
 
     let adc_values: Arc<Mutex<Vec<i32>>> = Arc::new(Mutex::new(Vec::with_capacity(SAMPLES_PER_CYCLE)));
 
-    // Channel for notifying the capture_samples thread
-    let (tx, rx): (mpsc::Sender<()>, mpsc::Receiver<()>) = mpsc::channel();
-
-    let fd_clone = Arc::clone(&fd);
     let adc_values_clone: Arc<Mutex<Vec<i32>>> = Arc::clone(&adc_values);
 
     calibrate_sensor(fd.clone(), &mut adc_min_value,  &mut adc_max_value);
 
-    println!("Max value: {}", adc_max_value);
-    println!("Min value: {}", adc_min_value);
-
-    // Thread to detect zero-crossing and notify the capture thread
-    thread::spawn(move || {
-        detect_zero_crossing(fd_clone, tx, &adc_min_value, &adc_max_value, ADC_THRESHOLD);
-    });
-
-    let fd_clone = Arc::clone(&fd);
-
-    // Capture thread waits for zero-crossing signal and then starts capturing samples
-    let capture_handle = thread::spawn(move || {
-        println!("Waiting for zero-crossing in capture thread...");
-        // Start capturing samples once zero-crossing is detected
-        capture_samples(fd_clone, rx, adc_values_clone);
-    });
-
-    // Wait for the capture thread to finish
-    capture_handle.join().expect("Failed to join capture thread");
-
-    /* Library Use */
-    /* 
-     * Test to generate signals, you should used your sensors
-     * Voltage Signal: generated_signals[0]
-     * Current Signal: generated_signals[1]
-     */
-    //let generated_signals_fake: Vec<Vec<i32>> = metrology_insight::generate_signals();
-    println!("Signal: {:?}", adc_values.lock().unwrap());
-
-    let mut generated_signals: Vec<Vec<i32>> = Vec::with_capacity(2); // Vector que contendrá 2 vectores
-    generated_signals.push(adc_values.lock().unwrap().clone()); // First vector
-    generated_signals.push(vec![0; SAMPLES_PER_CYCLE]); // Primer vector
-
-    let voltage_signal = MetrologyInsightSignal {
-        signal: generated_signals[0].clone(),   // Buffer of the voltage signal
-        length: SAMPLES_PER_CYCLE,              // Length of the sample buffer (usually greater than 1 cycle)
-        integrate: false,                       // Indicates if the signal should be integrated (e.g., for Rogowski coils)
-        calc_freq: true,                        // Indicates if the frequency should be calculated from the signal
-        ..Default::default()                    // The rest of the fields are initialized with their default values
-    };
-    
-    let current_signal = MetrologyInsightSignal {
-        signal: generated_signals[1].clone(),   // Buffer of the current signal
-        length: SAMPLES_PER_CYCLE,              // Length of the sample buffer (usually greater than 1 cycle)
-        integrate: true,                        // Indicates if the signal should be integrated (e.g., for Rogowski coils)
-        calc_freq: false,                       // Indicates if the frequency should be calculated from the signal
-        ..Default::default()                    // The rest of the fields are initialized with their default values
-    };
-
     let config = metrology_insight::MetrologyInsightConfig {
-            avg_sec: 0.02,
-            adc_voltage_d2a_factor: ADC_VOLTAGE_FACTOR,
-            adc_currents_d2a_factor: ADC_VOLTAGE_FACTOR,
-            adc_samples_seconds: SAMPLE_FREQUENCY,
-            num_harmonics: 0,
+        avg_sec: 0.02,
+        adc_voltage_d2a_factor: ADC_VOLTAGE_FACTOR,
+        adc_currents_d2a_factor: ADC_VOLTAGE_FACTOR,
+        adc_samples_seconds: SAMPLE_FREQUENCY,
+        num_harmonics: 0,
     };
 
     let mut insight = metrology_insight::MetrologyInsight {
@@ -113,10 +60,59 @@ fn main() {
         config: config,
     };
 
-    // Call init with the configurations
-    insight.process_signal(voltage_signal, current_signal);
-    insight.calculate_power_metrology();
-    insight.calculate_energy_metrology();
+    // Get a second average
+    for _ in 0..50 {
+        // Channel for notifying the capture_samples thread
+        let (tx, rx): (mpsc::Sender<()>, mpsc::Receiver<()>) = mpsc::channel();
+        let fd_clone: Arc<Mutex<std::fs::File>> = Arc::clone(&fd);
+        adc_values.lock().unwrap().clear();
+/*
+        // Hilo para detectar el cruce por cero y notificar al hilo de captura
+        thread::spawn({
+            let tx = tx.clone();
+            let fd_clone = Arc::clone(&fd_clone);
+            move || {
+                detect_zero_crossing(fd_clone, tx, &adc_min_value, &adc_max_value, ADC_THRESHOLD);
+            }
+        });
+
+        // Hilo de captura espera la señal de cruce por cero y luego empieza a capturar muestras
+        let capture_handle = thread::spawn({
+            let fd_clone = Arc::clone(&fd_clone);
+            let adc_values_clone = Arc::clone(&adc_values);
+            move || {
+                capture_samples(fd_clone, rx, adc_values_clone);
+            }
+        });
+
+        // Esperar a que el hilo de captura termine antes de procesar
+        capture_handle.join().expect("Failed to join capture thread");
+*/          
+        capture_samples(fd_clone, rx, Arc::clone(&adc_values));
+        //moving_average(&mut adc_values_clone.lock().unwrap().clone(), 5);
+
+        let voltage_signal = MetrologyInsightSignal {
+            signal: adc_values_clone.lock().unwrap().clone(),   // Buffer de la señal de voltaje
+            length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
+            integrate: false,                       // Indica si la señal debe integrarse
+            calc_freq: true,                        // Indica si debe calcular la frecuencia
+            ..Default::default()                    // Los demás campos con valores predeterminados
+        };
+        
+        let current_signal = MetrologyInsightSignal {
+            signal: vec![0; SAMPLES_PER_CYCLE],   // Buffer de la señal de corriente
+            length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
+            integrate: true,                        // Indica si la señal debe integrarse
+            calc_freq: false,                       // Indica si la frecuencia no debe calcularse
+            ..Default::default()                    // Los demás campos con valores predeterminados
+        };
+
+        // Llamada a `process_signal` y cálculo de metrología
+        insight.process_signal(&voltage_signal, &current_signal);
+        insight.calculate_power_metrology();
+        insight.calculate_energy_metrology();
+    }
+
     insight.print_signal();
     insight.print_power();
     insight.print_energy();
@@ -149,7 +145,6 @@ fn load_module(module: &str) {
 fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, tx: mpsc::Sender<()>, adc_min_value: &i32, adc_max_value: &i32, adc_threshold: i32) {
     let mut buffer: [u8; 4] = [0; 4];
     let median = (adc_max_value + adc_min_value) / 2;
-    println!("median: {}", median);
 
     loop {
         let mut fd_locked = fd.lock().unwrap();
@@ -170,8 +165,8 @@ fn detect_zero_crossing(fd: Arc<Mutex<std::fs::File>>, tx: mpsc::Sender<()>, adc
 // Function for capturing samples in one cycle
 fn capture_samples(fd: Arc<Mutex<std::fs::File>>, rx: mpsc::Receiver<()>, adc_values: Arc<Mutex<Vec<i32>>>) {
     let mut buffer: [u8; 4] = [0; 4];
-    rx.recv().expect("Failed to receive zero-crossing signal in capture thread");
-    let start_time: Instant = Instant::now();
+    //rx.recv().expect("Failed to receive zero-crossing signal in capture thread");
+    //let start_time: Instant = Instant::now();
 
     let mut fd_locked = fd.lock().unwrap();
 
@@ -195,7 +190,7 @@ fn capture_samples(fd: Arc<Mutex<std::fs::File>>, rx: mpsc::Receiver<()>, adc_va
 
     }
     // Imprimir el tiempo transcurrido en milisegundos
-    println!("Captura completada en {} ms",  (start_time.elapsed().as_micros() / 1000) as f64);
+    //println!("Captura completada en {} ms",  (start_time.elapsed().as_micros() / 1000) as f64);
 }
 
 fn calibrate_sensor(fd: Arc<Mutex<std::fs::File>>, min_value: &mut i32, max_value: &mut i32) {
@@ -224,8 +219,18 @@ fn calibrate_sensor(fd: Arc<Mutex<std::fs::File>>, min_value: &mut i32, max_valu
         }
 
         let elapsed_time_us = cycle_start.elapsed().as_micros();
-        if elapsed_time_us < 128 {
-            delay_microseconds(128 - elapsed_time_us);
+        if elapsed_time_us < TARGET_CYCLE_TIME_US {
+            delay_microseconds(TARGET_CYCLE_TIME_US - elapsed_time_us);
         }
+    }
+}
+
+fn moving_average(signal: &mut Vec<i32>, window_size: usize) {
+    let len = signal.len();
+    for i in 0..len {
+        let start = if i >= window_size { i - window_size } else { 0 };
+        let end = i + 1;
+        let sum: i32 = signal[start..end].iter().copied().sum();
+        signal[i] = sum / (end - start) as i32; // Promedio entero
     }
 }

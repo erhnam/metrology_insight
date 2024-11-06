@@ -4,8 +4,6 @@ mod energy;
 pub mod signal_processing;
 pub mod generate_signal;
 
-pub use generate_signal::generate_signals;
-
 /// Inititial configuration
 #[derive(Clone)]
 pub struct MetrologyInsightConfig {
@@ -17,60 +15,17 @@ pub struct MetrologyInsightConfig {
     pub num_harmonics: usize,
 }
 
-/// Represents a three-phase socket with current, voltage, power, and energy data.
-#[derive(Default, Clone)]
-pub struct MetrologyInsightSocket {
-    // Voltage signals
-    voltage_signal: signal_processing::MetrologyInsightSignal,
-
-    // Current signals
-    current_signal: signal_processing::MetrologyInsightSignal,
-
-    // Phase angle to phase angle
-    c2v_angle: f64, // Current to voltage angle difference (for the same phase)
-    voltage_angle: f64, // Voltage angle relative to phase 0 (voltage_angle[0] is always zero)
-    current_angle: f64, // Current angle; I[0] is the reference, so current_angle[0] is always zero
-
-    // Power
-    active_power: f64,
-    reactive_power: f64,
-    apparent_power: f64,
-    power_factor: f64, // Power factor: cos(phi)
-
-    // Active and reactive energies by quadrant.
-    active_energy_q1: f64,
-    active_energy_q2: f64,
-    active_energy_q3: f64,
-    active_energy_q4: f64,
-    reactive_energy_q1: f64,
-    reactive_energy_q2: f64,
-    reactive_energy_q3: f64,
-    reactive_energy_q4: f64,
-
-    // Imported energy, exported energy, and energy balance.
-    energy_imported: f64,
-    energy_exported: f64,
-    active_energy_balance: f64,
-    energy_capacitive: f64,
-    energy_inductive: f64,
-    reactive_energy_balance: f64,
-}
-
 #[derive(Clone)]
 pub struct MetrologyInsight {
-    pub socket: MetrologyInsightSocket,
+    pub socket: signal_processing::MetrologyInsightSocket,
     pub config: MetrologyInsightConfig,
 }
 
 impl MetrologyInsight {
-    pub fn process_signal(&mut self, voltage_signal: signal_processing::MetrologyInsightSignal, current_signal: signal_processing::MetrologyInsightSignal) {
-        self.socket = MetrologyInsightSocket {
-            voltage_signal: voltage_signal,
-            current_signal: current_signal,
-            ..Default::default()
-        };
-        signal_processing::process_signal(&mut self.socket.voltage_signal, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds);
-        signal_processing::process_signal(&mut self.socket.current_signal, self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds);
+    pub fn process_signal(&mut self, voltage_signal: &signal_processing::MetrologyInsightSignal, current_signal: &signal_processing::MetrologyInsightSignal) {
+        let mut freq_zc: f64 = -1.0;
+        signal_processing::process_signal(&mut self.socket, &mut voltage_signal.clone(), &mut freq_zc, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds);
+        signal_processing::process_signal(&mut self.socket, &mut current_signal.clone(), &mut freq_zc,self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds);
     }
 
     pub fn calculate_power_metrology(&mut self) {

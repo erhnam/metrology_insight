@@ -1,4 +1,4 @@
-use super::MetrologyInsightSocket;
+use super::signal_processing::MetrologyInsightSocket;
 
 fn calculate_active_energy_by_cuadrant(socket: &mut MetrologyInsightSocket) 
 {
