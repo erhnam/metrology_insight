@@ -15,7 +15,7 @@ const TARGET_CYCLE_TIME_US: u128 = 128;
 const VOLTAGE_REF: f64 = 3.3;
 const ADC_BIT_RESOLUTION: u32 = 4095;
 const ADC_OFFSET: f64 = 540.0;
-const ADC_VOLTAGE_FACTOR: f64 = (ADC_OFFSET*VOLTAGE_REF)/ADC_BIT_RESOLUTION as f64; //0,435164835
+const ADC_VOLTAGE_FACTOR: f64 = 1.16; // Vmax = 3.3V / 2 Raiz 2
 const ADC_THRESHOLD: i32 = 10;
 
 fn main() {
@@ -89,8 +89,8 @@ fn main() {
         capture_handle.join().expect("Failed to join capture thread");
 */          
         capture_samples(fd_clone, rx, Arc::clone(&adc_values));
-        //moving_average(&mut adc_values_clone.lock().unwrap().clone(), 5);
-
+        moving_average(&mut adc_values_clone.lock().unwrap().clone(), 5);
+        //println!("{:?}", adc_values_clone.lock().unwrap().clone());
         let voltage_signal = MetrologyInsightSignal {
             signal: adc_values_clone.lock().unwrap().clone(),   // Buffer de la señal de voltaje
             length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
