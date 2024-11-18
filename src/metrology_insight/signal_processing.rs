@@ -1,3 +1,5 @@
+#[warn(dead_code)]
+
 use crate::metrology_insight::voltage_current;
 
 const FREQ_NOMINAL_50: f64 = 50.0;
@@ -26,8 +28,10 @@ pub struct MetrologyInsightSignal {
     pub peak: f64,         // Peak value of the signal
     pub rms: f64,          // RMS value of the signal
     pub freq_nominal: f64, // Nominal frequency (50Hz or 60Hz)
-    pub freq_zc: f64,      // Frequency of the signal based on zero crossing
+    pub freq_zc: f64,     // Frequency of the signal based on zero crossing
+    #[allow(dead_code)]
     pub harmonics: [f64; NUMBER_HARMONICS], // Array of amplitudes and phases of harmonics
+    #[allow(dead_code)]
     pub thd: f64,            // Total harmonic distortion
     pub sc_thres: f64,     // Short circuit threshold
 }

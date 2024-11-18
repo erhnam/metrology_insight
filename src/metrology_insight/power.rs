@@ -1,3 +1,5 @@
+#[warn(dead_code)]
+
 fn rad_to_deg(x: f64) -> f64 {
     (180.0 / std::f64::consts::PI) * x
 }

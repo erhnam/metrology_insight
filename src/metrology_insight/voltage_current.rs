@@ -1,3 +1,5 @@
+use ndarray::NdFloat;
+
 use super::power;
 
 pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
@@ -13,38 +15,48 @@ pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
 	max_value
 }
 
+fn calculate_signal_power(signal1: &[i32],signal2: &[i32], length: usize, frequency: f64, adc_samples_second: f64) -> f64 {
+    let mut square: f64 = 0.0;
+    let mut mean: f64 = 0.0;
+
+    // Partes entera y fraccionaria
+    let mut n_length = ((length - 1) as usize) as f64;
+    let mut d_length = 0.0;
+    let mut p_length = length as f64;
+
+    // Calcular p_length si la frecuencia es mayor a 0
+    if frequency > 0.0 {
+        d_length = (adc_samples_second / frequency).fract();
+        p_length = n_length + d_length;
+    }
+
+    // Calcular RMS para la parte entera
+    for i in 0..(n_length as usize -1) {
+        let sample1 = signal1[i] as f64;
+        let sample2 = signal2[i] as f64;
+        square += sample1 * sample2;
+    }
+
+    // Calcular muestra interpolada si existe parte fraccionaria
+    if d_length != 0.0 {
+        let last_index = n_length as usize - 1;
+        let ysample1 = signal1[last_index] as f64
+            + (signal1[last_index + 1] as f64 - signal1[last_index] as f64) * d_length;
+        let ysample2 = signal2[last_index] as f64
+            + (signal2[last_index + 1] as f64 - signal2[last_index] as f64) * d_length;
+        square += (ysample1 * ysample2) * d_length;
+    }
+
+    // Calcular el valor medio
+    mean = square / p_length;
+
+    mean
+}
+
 pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64, adc_samples_second: f64) -> f64 {
-	let mut square: f64 = 0.0;
-	let mut n_length: f64 = 0.0; // Integer part
-	let mut d_length: f64 = 0.0; // Decimal part
-	let mut p_length: f64 = length_cycle as f64; // n + d length, fractional length of cycle
-	let mut ysample: f64 = 0.0; // Last interpolated y sample at fractinal x
-
-	if frequency > 0.0 {
-		let cycle_length: f64 = adc_samples_second / frequency;
-		n_length = cycle_length.floor();
-		d_length = cycle_length.fract();
-		p_length = n_length + d_length;
-	}
-	
-    // Compute last interpolated sample
-    if d_length > 0.0 {// Only interpolate frac sample if fractional part of cycle length exists.
-        ysample = (((1.0-d_length)/2.0) * signal[n_length as usize - 1] as f64) + (((1.0 + d_length)/2.0) * signal[n_length as usize] as f64)
-	}
-
-    // Compute RMS integer N part
-    for i in 0..n_length as usize {
-        let sample = signal[i] as f64;
-        square += sample.powi(2);
-	}
-	
-	square += ysample.powi(2) * d_length;
-
-	// Calculate mean
-	let mean = square / p_length;
-
-	if mean > 0.0 {
-		mean.sqrt() as f64
+	let power: f64 = calculate_signal_power(signal, signal, length_cycle, frequency, adc_samples_second);
+	if power > 0.0 {
+		power.sqrt()
 	} else {
 		0.0
 	}

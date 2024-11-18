@@ -12,6 +12,7 @@ pub struct MetrologyInsightConfig {
     pub adc_currents_d2a_factor: f64, /* The ratio of the ADC to Current values, used to scale samples to Volts */
                                       /* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
     pub adc_samples_seconds: f64,
+    #[allow(dead_code)]
     pub num_harmonics: usize,
 }
 
@@ -87,7 +88,7 @@ impl MetrologyInsight {
         println!("\tFz: {:?}", self.socket.voltage_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.voltage_signal.rms);
         println!("\tAngle: {:?}", self.socket.voltage_angle);
-        /*
+        
         println!("Current: ");
         println!("\tPeak: {:?}", self.socket.current_signal.peak);
         println!("\tFz: {:?}", self.socket.current_signal.freq_zc);
@@ -95,9 +96,10 @@ impl MetrologyInsight {
         println!("\tsc_thres: {:?}", self.socket.current_signal.sc_thres);
         println!("\tAngle: {:?}", self.socket.current_angle);
         println!("c2v Angle: {:?}\n", self.socket.c2v_angle);
-        */
+        
     }
 
+    #[allow(dead_code)]
     pub fn print_power(&mut self) {
         println!("Power: ");
         println!("\tActive: {:?}", self.socket.active_power);
@@ -106,6 +108,7 @@ impl MetrologyInsight {
         println!("\tFactor: {:?}", self.socket.power_factor);
     }
 
+    #[allow(dead_code)]
     pub fn print_energy(&mut self) {
         println!("Energy: ");
         println!("\tActive:");
