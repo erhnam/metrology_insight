@@ -22,7 +22,7 @@ mod metrology_insight;
 use metrology_insight::signal_processing::MetrologyInsightSignal;
 
 const SAMPLES_PER_CYCLE: usize = 177;
-const SAMPLE_FREQUENCY: f64 = 7812.5;
+const SAMPLE_FREQUENCY: f64 = 7850.0; // 7812.5
 const TARGET_CYCLE_TIME_MS: u64 = 20;
 const ADC_VOLTAGE_FACTOR: f64 = 1.0;
 
@@ -54,7 +54,7 @@ fn main() {
 		})
 	);
 
-	/* Voltage / Current Thread */
+	/* Thread to get voltage/current waveform */
 	thread::spawn({
 		move || {
 			let fd = OpenOptions::new()
@@ -85,7 +85,7 @@ fn main() {
 		}
 	});
 
-	// Thread process signal
+	// Thread to process voltage/current waveform
 	thread::spawn({
 		let consumer_insight = Arc::clone(&insight);
 		
@@ -138,8 +138,8 @@ fn main() {
 					if second_ctr == 0 {
 						let mut insight = insight_print.lock().unwrap();
 						insight.print_signal();
-						//insight.print_power();
-						//insight.print_energy();
+						insight.print_power();
+						insight.print_energy();
 					}
 				}
 			}
@@ -172,12 +172,15 @@ fn load_module(module: &str) {
 }
 
 #[allow(dead_code)]
-fn moving_average(signal: &mut Vec<i32>, window_size: usize) {
+fn moving_average(signal: Vec<i32>, window_size: usize) -> Vec<i32> {
 	let len = signal.len();
+	let mut buffer = signal.clone();
 	for i in 0..len {
 		let start = if i >= window_size { i - window_size } else { 0 };
 		let end = i + 1;
-		let sum: i32 = signal[start..end].iter().copied().sum();
-		signal[i] = sum / (end - start) as i32; // Promedio entero
+		let sum: i32 = buffer[start..end].iter().copied().sum();
+		buffer[i] = sum / (end - start) as i32; // Promedio entero
 	}
+
+	buffer
 }

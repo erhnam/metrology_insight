@@ -8,7 +8,7 @@ const FREQ_NOMINAL_60: f64 = 60.0;
 const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
 const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
-const FREQ_ZC_DEBOUNCE: u32 = 5;
+const FREQ_ZC_DEBOUNCE: u32 = 61;
 const ZERO_CROSSING_MAX_POINTS: usize = 100; // Maximum number of zero crossing points to store
 
 const EXTRA_SAMPLES: u32 = 20; /* Extra samples to a cycle to get zero crossing */
@@ -76,8 +76,8 @@ fn is_frequency(freq: f64, nominal: f64) -> bool {
 	freq < (1.07 * nominal) && freq > (0.95 * nominal)
 }
 
-pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_second: f64) -> f64 {
-    let num_samples = 156;
+pub fn calculate_zero_crossing_freq(signal: &[i32], adc_samples_second: f64) -> f64 {
+    let num_samples = signal.len();
     let mut num_crossing: usize = 0;
     let mut debounce: u32 = 0;
     let mut frequency: f64 = -1.0;
@@ -85,7 +85,7 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
 
     for p in 0..(num_samples - 1) {
         // Detect a zero crossing
-        if debounce == 0 && ((signal[p] > 0 && signal[p + 1] <= 0) || (signal[p] < 0 && signal[p + 1] >= 0)) {
+        if (debounce == 0) && ((signal[p] > 0 && signal[p + 1] <= 0) || (signal[p] < 0 && signal[p + 1] >= 0)) {
             // Interpolation to calculate the exact crossing point
             let x1: f64 = p as f64;
             let y1: f64 = signal[p] as f64;
@@ -117,12 +117,11 @@ pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_s
             sum += interpolation_points[p+1] - interpolation_points[p];
         }
         let cycle_avg = (sum / (num_crossing - 1) as f64) * 2.0; // Promedio de ciclos
-
         frequency = 1.0 / (cycle_avg / adc_samples_second); // Frecuencia
+
     }
     frequency
 }
-
 
 fn calculate_signal_frequency_nominal(freq_zc: f64, length: &mut usize, nominal_freq: f64) -> f64 {
     let mut freq_nominal = FREQ_NOMINAL_50;
@@ -233,7 +232,7 @@ pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut Metrolog
 
         // Zero crossing frequency needs to be calculated
         if signal.calc_freq {
-            m_signal.freq_zc = calculate_zero_crossing_freq(&signal.signal, signal.length, adc_samples_second);
+            m_signal.freq_zc = calculate_zero_crossing_freq(&signal.signal, adc_samples_second);
             if m_signal.freq_zc == -1.0 {
                 m_signal.freq_zc = FREQ_NOMINAL_50; // Assign nominal frequency in case of error
             }
