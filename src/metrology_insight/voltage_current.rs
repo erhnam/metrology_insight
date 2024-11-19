@@ -15,7 +15,6 @@ pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
 
 fn calculate_signal_power(signal1: &[i32],signal2: &[i32], length: usize, frequency: f64, adc_samples_second: f64) -> f64 {
     let mut square: f64 = 0.0;
-    let mut mean: f64 = 0.0;
 
     // Partes entera y fraccionaria
     let n_length = ((length - 1) as usize) as f64;
@@ -46,9 +45,7 @@ fn calculate_signal_power(signal1: &[i32],signal2: &[i32], length: usize, freque
     }
 
     // Calcular el valor medio
-    mean = square / p_length;
-
-    mean
+    square / p_length
 }
 
 pub fn calculate_rms(signal: &[i32], length_cycle: usize, frequency: f64, adc_samples_second: f64) -> f64 {

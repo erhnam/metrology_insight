@@ -25,8 +25,8 @@ pub struct MetrologyInsight {
 impl MetrologyInsight {
     pub fn process_signal(&mut self, voltage_signal: &signal_processing::MetrologyInsightSignal, current_signal: &signal_processing::MetrologyInsightSignal) {
         let mut freq_zc: f64 = -1.0;
-        signal_processing::process_signal(&mut self.socket, &mut voltage_signal.clone(), &mut freq_zc, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds);
-        signal_processing::process_signal(&mut self.socket, &mut current_signal.clone(), &mut freq_zc,self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds);
+        signal_processing::process_signal(&mut self.socket, &mut voltage_signal.clone(), &mut freq_zc, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds, self.config.avg_sec);
+        signal_processing::process_signal(&mut self.socket, &mut current_signal.clone(), &mut freq_zc, self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds, self.config.avg_sec);
     }
 
     pub fn calculate_power_metrology(&mut self) {

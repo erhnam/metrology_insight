@@ -5,8 +5,6 @@ use crate::metrology_insight::voltage_current;
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
 
-pub const AVG_SEC: f64 = 0.02;
-
 const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
 const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
@@ -79,12 +77,13 @@ fn is_frequency(freq: f64, nominal: f64) -> bool {
 }
 
 pub fn calculate_zero_crossing_freq(signal: &[i32], length: usize, adc_samples_second: f64) -> f64 {
+    let num_samples = 156;
     let mut num_crossing: usize = 0;
     let mut debounce: u32 = 0;
     let mut frequency: f64 = -1.0;
     let mut interpolation_points: Vec<f64> = vec![0.0; ZERO_CROSSING_MAX_POINTS];
 
-    for p in 0..(length - 1) {
+    for p in 0..(num_samples - 1) {
         // Detect a zero crossing
         if debounce == 0 && ((signal[p] > 0 && signal[p + 1] <= 0) || (signal[p] < 0 && signal[p + 1] >= 0)) {
             // Interpolation to calculate the exact crossing point
@@ -216,17 +215,16 @@ fn signal_integrate(signal: &mut [i32], length: usize, freq_zc: f64, adc_current
 
 }
 
-pub fn average(in_value: f64, out_value: &mut f64, avg: f64) -> f64 {
+pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 	if *out_value == 0.0 {
 		*out_value = in_value;
 	} else {
 		let old_value = *out_value;
 		*out_value += avg * (in_value - old_value);
 	}
-    *out_value
 }
 
-pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut MetrologyInsightSignal, freq_zc: &mut f64, calculated_adcfactor: f64, adc_samples_second: f64) {
+pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut MetrologyInsightSignal, freq_zc: &mut f64, calculated_adcfactor: f64, adc_samples_second: f64, avg_sec: f64) {
     let mut m_signal: MetrologyInsightSignal = MetrologyInsightSignal::default();
 
     if !signal.signal.is_empty() && signal.length > 0 {
@@ -276,16 +274,15 @@ pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut Metrolog
             socket.voltage_signal.length_cycle = signal.length_cycle;
             socket.voltage_signal.length = signal.length;
             socket.voltage_signal.peak = signal.peak;
-            average(m_signal.rms, &mut socket.voltage_signal.rms, AVG_SEC);
-            average(m_signal.freq_zc, &mut socket.voltage_signal.freq_zc, AVG_SEC);
+            average(m_signal.rms, &mut socket.voltage_signal.rms, avg_sec);
+            average(m_signal.freq_zc, &mut socket.voltage_signal.freq_zc, avg_sec);
         } else {
             socket.current_signal.freq_nominal = signal.freq_nominal;
             socket.current_signal.length_cycle = signal.length_cycle;
             socket.current_signal.length = signal.length;
             socket.current_signal.sc_thres = signal.sc_thres;
             socket.current_signal.peak = signal.peak;
-            average(m_signal.rms, &mut socket.current_signal.rms, AVG_SEC);
-            average(m_signal.freq_zc, &mut socket.current_signal.freq_zc, AVG_SEC);
+            average(m_signal.rms, &mut socket.current_signal.rms, avg_sec);
         }
     }
 }

@@ -13,10 +13,9 @@ ln -sf /lib/ld-musl-riscv64v0p7_xthead.so.1 /lib/ld-musl-riscv64.so.1
 use std::fs::OpenOptions;
 use std::process::Command;
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use memmap2::MmapMut;
 use std::os::unix::io::AsRawFd;
 
 mod metrology_insight;
@@ -24,14 +23,11 @@ use metrology_insight::signal_processing::MetrologyInsightSignal;
 
 const SAMPLES_PER_CYCLE: usize = 177;
 const SAMPLE_FREQUENCY: f64 = 7812.5;
-const TARGET_CYCLE_TIME_US: u64 = 128;
-const ADC_VOLTAGE_FACTOR: f64 = 0.5; // Vmax = 3.3V / 2 Raiz 2
+const TARGET_CYCLE_TIME_MS: u64 = 20;
+const ADC_VOLTAGE_FACTOR: f64 = 1.0;
 
-#[repr(C)]
-struct SaradcData {
-    adc_data_1: u32,
-    adc_data_2: u32,
-}
+const SAMPLES_PER_BUFFER: usize = 177;
+const CHANNEL_COUNT: usize = 2;
 
 fn main() {
 	if is_module_loaded("cv180x_saradc") {
@@ -41,7 +37,8 @@ fn main() {
 		println!("Módulo SARADC cargado.");
 	}
 
-	let (tx, rx) = mpsc::channel::<(Vec<i32>, Vec<i32>)>(); 
+	let (tx, rx) = mpsc::channel::<(&[i32], &[i32])>(); 
+	let (tx_process_to_print, rx_process_to_print) = mpsc::channel::<()>(); 
 
 	let config = metrology_insight::MetrologyInsightConfig {
 		avg_sec: 0.02,
@@ -57,64 +54,49 @@ fn main() {
 		})
 	);
 
-	/* Voltage Thread */
+	/* Voltage / Current Thread */
 	thread::spawn({
 		move || {
 			let fd = OpenOptions::new()
 				.read(true)
-				.write(true)
 				.open("/dev/cvi-saradc0")
 				.expect("Error opening ADC device");
 			let fd = fd.as_raw_fd();
 
 			// Mmap para mapear el dispositivo
-			let mut mmap = unsafe {
-				MmapMut::map_mut(fd).expect("Error mapping memory")
+			let mmap = unsafe {
+				memmap2::Mmap::map(&fd).expect("Error mapping memory")
 			};
 	
-			// Ahora `mmap` apunta a la memoria compartida
-			let shared_data: &mut SaradcData = unsafe {
-				// Convertimos el puntero de memoria mapeada a nuestra estructura
-				&mut *(mmap.as_mut_ptr() as *mut SaradcData)
+			let samples = unsafe {
+				std::slice::from_raw_parts(mmap.as_ptr() as *const i32, CHANNEL_COUNT * SAMPLES_PER_BUFFER)
 			};
-
-			let mut adc_voltage_values: Vec<i32> = vec![0i32; SAMPLES_PER_CYCLE];
-			let mut adc_current_values: Vec<i32> = vec![0i32; SAMPLES_PER_CYCLE];
-
+			
 			loop {
-				for i in 0..SAMPLES_PER_CYCLE {
-					let cycle_start: Instant = Instant::now();
+		
+				std::thread::sleep(std::time::Duration::from_millis(TARGET_CYCLE_TIME_MS));
 
-					adc_voltage_values[i] = shared_data.adc_data_1 as i32;
-					adc_current_values[i] = shared_data.adc_data_2 as i32;
-
-
-					while cycle_start.elapsed().subsec_micros() < TARGET_CYCLE_TIME_US as u32 {
-						std::hint::spin_loop();
-					}
-
-//					delay_us(TARGET_CYCLE_TIME_US);
-					//println!("Elapsed time sample: {}", cycle_start.elapsed().as_micros());
+				// Enviar los datos a través del canal
+				if tx.send((&samples[0..SAMPLES_PER_BUFFER], &samples[SAMPLES_PER_BUFFER..])).is_err() {
+					eprintln!("Error: Receiver has dropped");
+					break;
 				}
-
-				tx.send((adc_voltage_values.clone(), adc_current_values.clone())).unwrap();
 			}
 		}
 	});
 
-	// Tarea que lee el buffer en un bucle infinito
+	// Thread process signal
 	thread::spawn({
 		let consumer_insight = Arc::clone(&insight);
 		
 		move || {
 			loop {
 				while let Ok((data_voltage_to_consume, data_current_to_consume)) = rx.recv() {
-					//moving_average(&mut data_to_consume, 5);
 					//println!("Voltage  {:?}", data_voltage_to_consume);
 					//println!("Current  {:?}", data_current_to_consume);
 
 					let voltage_signal: MetrologyInsightSignal = MetrologyInsightSignal {
-						signal: data_voltage_to_consume,   // Buffer de la señal de voltaje
+						signal: data_voltage_to_consume.to_vec(),   // Buffer de la señal de voltaje
 						length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
 						integrate: false,                       // Indica si la señal debe integrarse
 						calc_freq: true,                        // Indica si debe calcular la frecuencia
@@ -122,19 +104,22 @@ fn main() {
 					};
 					
 					let current_signal = MetrologyInsightSignal {
-						signal: data_current_to_consume,   // Buffer de la señal de corriente
+						signal: data_current_to_consume.to_vec(),   // Buffer de la señal de corriente
 						length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
 						integrate: true,                        // Indica si la señal debe integrarse
 						calc_freq: false,                       // Indica si la frecuencia no debe calcularse
 						..Default::default()                    // Los demás campos con valores predeterminados
 					};
 
-					{
-						let mut c_insight = consumer_insight.lock().unwrap();
-						// Llamada a `process_signal` y cálculo de metrología
-						c_insight.process_signal(&voltage_signal, &current_signal);
-						c_insight.calculate_power_metrology();
-						c_insight.calculate_energy_metrology();
+					let mut c_insight = consumer_insight.lock().unwrap();
+					// Llamada a `process_signal` y cálculo de metrología
+					c_insight.process_signal(&voltage_signal, &current_signal);
+					c_insight.calculate_power_metrology();
+					c_insight.calculate_energy_metrology();
+					
+					if tx_process_to_print.send(()).is_err() {
+						eprintln!("Error: Receiver has dropped");
+						break;
 					}
 				}
 			}
@@ -144,28 +129,28 @@ fn main() {
 	// Tarea del tercer hilo para ejecutar funciones cada segundo
 	thread::spawn({
 		let insight_print: Arc<Mutex<metrology_insight::MetrologyInsight>> = Arc::clone(&insight);
+		let mut second_ctr: i32 = 0;
+
 		move || {
 			loop {
-				delay_us(1_000_000);
-				let mut insight = insight_print.lock().unwrap();
-				insight.print_signal();
-				//insight.print_power();
-				//insight.print_energy();
+				while let Ok(()) = rx_process_to_print.recv() {
+					second_ctr = (second_ctr + 1) % 50; //While measures are computed every second, always send to print, no skip.
+					if second_ctr == 0 {
+						let mut insight = insight_print.lock().unwrap();
+						insight.print_signal();
+						//insight.print_power();
+						//insight.print_energy();
+					}
+				}
 			}
 		}
 	});
 
 	// Evitar que el hilo principal termine, haciendo una espera indefinida.
 	loop {
-		//thread::sleep(Duration::from_secs(1));  // Espera de 60 segundos
+		thread::sleep(Duration::from_secs(1));  // Espera de 60 segundos
 	}
 
-}
-
-fn delay_us(microseconds: u64) {
-	let start = Instant::now();
-	// Busy-wait loop hasta que transcurra el tiempo deseado
-	while start.elapsed().as_micros() < (microseconds) as u128 {}
 }
 
 fn is_module_loaded(module: &str) -> bool {
