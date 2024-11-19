@@ -1,5 +1,3 @@
-use ndarray::NdFloat;
-
 use super::power;
 
 pub fn calculate_peak(signal: &[i32], length: usize) -> f64 {
@@ -20,7 +18,7 @@ fn calculate_signal_power(signal1: &[i32],signal2: &[i32], length: usize, freque
     let mut mean: f64 = 0.0;
 
     // Partes entera y fraccionaria
-    let mut n_length = ((length - 1) as usize) as f64;
+    let n_length = ((length - 1) as usize) as f64;
     let mut d_length = 0.0;
     let mut p_length = length as f64;
 

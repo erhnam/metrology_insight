@@ -88,7 +88,7 @@ impl MetrologyInsight {
         println!("\tFz: {:?}", self.socket.voltage_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.voltage_signal.rms);
         println!("\tAngle: {:?}", self.socket.voltage_angle);
-        
+        /*
         println!("Current: ");
         println!("\tPeak: {:?}", self.socket.current_signal.peak);
         println!("\tFz: {:?}", self.socket.current_signal.freq_zc);
@@ -96,6 +96,7 @@ impl MetrologyInsight {
         println!("\tsc_thres: {:?}", self.socket.current_signal.sc_thres);
         println!("\tAngle: {:?}", self.socket.current_angle);
         println!("c2v Angle: {:?}\n", self.socket.c2v_angle);
+        */
         
     }
 
