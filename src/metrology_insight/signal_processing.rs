@@ -8,10 +8,10 @@ const FREQ_NOMINAL_60: f64 = 60.0;
 const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
 const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
-const FREQ_ZC_DEBOUNCE: u32 = 61;
+const FREQ_ZC_DEBOUNCE: u32 = 5;
 const ZERO_CROSSING_MAX_POINTS: usize = 100; // Maximum number of zero crossing points to store
 
-const EXTRA_SAMPLES: u32 = 20; /* Extra samples to a cycle to get zero crossing */
+const EXTRA_SAMPLES: usize = 20; /* Extra samples to a cycle to get zero crossing */
 
 const NUMBER_HARMONICS: usize = 10;
 
@@ -77,11 +77,12 @@ fn is_frequency(freq: f64, nominal: f64) -> bool {
 }
 
 pub fn calculate_zero_crossing_freq(signal: &[i32], adc_samples_second: f64) -> f64 {
-    let num_samples = signal.len();
+    let num_samples = 157;
     let mut num_crossing: usize = 0;
     let mut debounce: u32 = 0;
     let mut frequency: f64 = -1.0;
     let mut interpolation_points: Vec<f64> = vec![0.0; ZERO_CROSSING_MAX_POINTS];
+    //println!("Signal: {:?}\n", signal);
 
     for p in 0..(num_samples - 1) {
         // Detect a zero crossing
@@ -225,7 +226,7 @@ pub fn average(in_value: f64, out_value: &mut f64, avg: f64) {
 
 pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut MetrologyInsightSignal, freq_zc: &mut f64, calculated_adcfactor: f64, adc_samples_second: f64, avg_sec: f64) {
     let mut m_signal: MetrologyInsightSignal = MetrologyInsightSignal::default();
-
+    
     if !signal.signal.is_empty() && signal.length > 0 {
         // Remove the offset from the signal
         signal_offset_remove(&mut signal.signal);
@@ -244,7 +245,7 @@ pub fn process_signal(socket: &mut MetrologyInsightSocket, signal: &mut Metrolog
         signal.freq_zc = m_signal.freq_zc; // Indicates the calculated frequency for this signal
         signal.freq_nominal = calculate_signal_frequency_nominal(m_signal.freq_zc, &mut signal.length, signal.freq_nominal);
         signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
-        signal.length = signal.length_cycle + EXTRA_SAMPLES as usize;
+        signal.length = signal.length_cycle + EXTRA_SAMPLES;
 
         // TODO: Harmonics calculations
         // harmonics(signal, calculated_adcfactor, signal.integrate, m_signal.freq_zc);

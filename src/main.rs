@@ -17,17 +17,27 @@ use std::time::Duration;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::os::unix::io::AsRawFd;
+use nix::libc::{mmap, MAP_FAILED, MAP_SHARED, PROT_READ};
+use nix::{ioctl_none, ioctl_read};
+use signal_hook::consts::signal::*;
+use signal_hook::iterator::Signals;
 
 mod metrology_insight;
 use metrology_insight::signal_processing::MetrologyInsightSignal;
 
 const SAMPLES_PER_CYCLE: usize = 177;
-const SAMPLE_FREQUENCY: f64 = 7850.0; // 7812.5
-const TARGET_CYCLE_TIME_MS: u64 = 20;
-const ADC_VOLTAGE_FACTOR: f64 = 1.0;
+const SAMPLE_FREQUENCY: f64 = 7812.5; // 7812.5
+const ADC_VOLTAGE_FACTOR: f64 = 1.65;
 
-const SAMPLES_PER_BUFFER: usize = 177;
-const CHANNEL_COUNT: usize = 2;
+/* IOCTL */
+const IOCTL_MAGIC: u8 = b'W';  // El mismo código mágico que en el kernel
+const IOCTL_START_TIMER: u64 = 0x1;  // Define tu propio comando (si quieres usar este formato)
+const IOCTL_WAIT_BUFFER_SWITCH: u64 = 0x2;
+const IOCTL_REGISTER_PID: u64 = 0x3;
+
+ioctl_none!(start_timer, IOCTL_MAGIC, IOCTL_START_TIMER);
+ioctl_read!(ioctl_wait_buffer_switch, IOCTL_MAGIC, IOCTL_WAIT_BUFFER_SWITCH, i32);
+ioctl_none!(ioctl_register_pid, IOCTL_MAGIC, IOCTL_REGISTER_PID);
 
 fn main() {
 	if is_module_loaded("cv180x_saradc") {
@@ -36,6 +46,9 @@ fn main() {
 		load_module("cv180x_saradc");
 		println!("Módulo SARADC cargado.");
 	}
+
+	// Crear un canal para señales
+	let mut signals = Signals::new(&[SIGUSR1, SIGUSR2]).expect("No se pudo registrar señales");
 
 	let (tx, rx) = mpsc::channel::<(&[i32], &[i32])>(); 
 	let (tx_process_to_print, rx_process_to_print) = mpsc::channel::<()>(); 
@@ -54,32 +67,74 @@ fn main() {
 		})
 	);
 
-	/* Thread to get voltage/current waveform */
-	thread::spawn({
-		move || {
-			let fd = OpenOptions::new()
-				.read(true)
-				.open("/dev/cvi-saradc0")
-				.expect("Error opening ADC device");
-			let fd = fd.as_raw_fd();
-
-			// Mmap para mapear el dispositivo
-			let mmap = unsafe {
-				memmap2::Mmap::map(&fd).expect("Error mapping memory")
-			};
+	thread::spawn(move || {
+		//println!("¡Recibida SIGUSR1 del kernel!");
+		let fd = OpenOptions::new()
+		.read(true)
+		.open("/dev/cvi-saradc0")
+		.expect("Error opening ADC device");
+		let fd = fd.as_raw_fd();
 	
-			let samples = unsafe {
-				std::slice::from_raw_parts(mmap.as_ptr() as *const i32, CHANNEL_COUNT * SAMPLES_PER_BUFFER)
-			};
+		unsafe {
+			// Mmap para mapear el dispositivo
+			let addr = mmap(
+				std::ptr::null_mut(),                  // Dirección sugerida (NULL para que el kernel decida)
+				708,                                    // Tamaño a mapear 2 Buffers 354 samples
+				PROT_READ,                                  // Permisos (solo lectura)
+				MAP_SHARED,                           // Tipo de mapeo
+				fd,                                          // Descriptor de archivo
+				0 as nix::libc::off_t,  			 // Offset en bytes
+			);
+	
+			if addr == MAP_FAILED {
+				eprintln!("Failed to mmap buffer");
+				return;
+			}
 			
-			loop {
+			/* Register PID in linux driver */
+			let result = ioctl_register_pid(fd);
+			if let Err(e) = result {
+				eprintln!("Error al registrar el PID: {}", e);
+				return;
+			}
+	
+			// Ajustar el puntero base para que comience después del offset de 4 bytes
+			let data_ptr = addr as *const i32;
+	
+			// Crear los slices considerando el offset
+			let voltage_1 = std::slice::from_raw_parts(data_ptr, SAMPLES_PER_CYCLE);
+			let current_1 = std::slice::from_raw_parts(data_ptr.add(SAMPLES_PER_CYCLE), SAMPLES_PER_CYCLE);
+			let voltage_2 = std::slice::from_raw_parts(data_ptr.add(2 * SAMPLES_PER_CYCLE), SAMPLES_PER_CYCLE);
+			let current_2 = std::slice::from_raw_parts(data_ptr.add(3 * SAMPLES_PER_CYCLE), SAMPLES_PER_CYCLE);
+	
+			// Llamamos a ioctl para iniciar el temporizador para captar waveform
+			let result = start_timer(fd);
+			if let Err(e) = result {
+				eprintln!("Error calling ioctl to start timer");
+				return;
+			} else {
+				println!("Timer started successfully");
+			}
 		
-				std::thread::sleep(std::time::Duration::from_millis(TARGET_CYCLE_TIME_MS));
-
-				// Enviar los datos a través del canal
-				if tx.send((&samples[0..SAMPLES_PER_BUFFER], &samples[SAMPLES_PER_BUFFER..])).is_err() {
-					eprintln!("Error: Receiver has dropped");
-					break;
+			for signal in signals.forever() {
+				match signal {
+					SIGUSR1 => {
+						// El canal transmite los datos a través del hilo
+						if tx.send((&voltage_1, &current_1)).is_err() {
+							println!("Error: Receiver has dropped\n");
+							break;
+						}
+						//println!("Buffer 1: {:?}\n", voltage_1);
+					},
+					SIGUSR2 => {
+						// El canal transmite los datos a través del hilo
+						if tx.send((&voltage_2, &current_2)).is_err() {
+							println!("Error: Receiver has dropped\n");
+							break;
+						}
+						//println!("Buffer 2: {:?}\n", voltage_2);
+					},
+					_ => unreachable!(),
 				}
 			}
 		}
@@ -92,11 +147,11 @@ fn main() {
 		move || {
 			loop {
 				while let Ok((data_voltage_to_consume, data_current_to_consume)) = rx.recv() {
-					//println!("Voltage  {:?}", data_voltage_to_consume);
+					//println!("Buffer leido {:?}\n", data_voltage_to_consume);
 					//println!("Current  {:?}", data_current_to_consume);
 
 					let voltage_signal: MetrologyInsightSignal = MetrologyInsightSignal {
-						signal: data_voltage_to_consume.to_vec(),   // Buffer de la señal de voltaje
+						signal: moving_average(data_voltage_to_consume.to_vec(), 5),   // Buffer de la señal de voltaje
 						length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
 						integrate: false,                       // Indica si la señal debe integrarse
 						calc_freq: true,                        // Indica si debe calcular la frecuencia
@@ -104,7 +159,7 @@ fn main() {
 					};
 					
 					let current_signal = MetrologyInsightSignal {
-						signal: data_current_to_consume.to_vec(),   // Buffer de la señal de corriente
+						signal: moving_average(data_current_to_consume.to_vec(), 5),   // Buffer de la señal de corriente
 						length: SAMPLES_PER_CYCLE,              // Longitud del buffer de muestras
 						integrate: true,                        // Indica si la señal debe integrarse
 						calc_freq: false,                       // Indica si la frecuencia no debe calcularse

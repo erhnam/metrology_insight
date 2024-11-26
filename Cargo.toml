@@ -11,6 +11,7 @@ ndarray = "0.16.1"
 nix = "0.26.0"
 num-complex = "0.4.6"
 rand = "0.8.5"
+signal-hook = "0.3.17"
 spin_sleep = "1.2.1"
 
 [profile.release]
