@@ -1,16 +1,16 @@
-mod voltage_current;
-mod power;
 mod energy;
-pub mod signal_processing;
 pub mod generate_signal;
+mod power;
+pub mod signal_processing;
+mod voltage_current;
 
 /// Inititial configuration
 #[derive(Clone)]
 pub struct MetrologyInsightConfig {
     pub avg_sec: f64,
-    pub adc_voltage_d2a_factor: f64,  /* The ratio of the ADC to Voltage Values, used to scale samples to Volts. */
+    pub adc_voltage_d2a_factor: f64, /* The ratio of the ADC to Voltage Values, used to scale samples to Volts. */
     pub adc_currents_d2a_factor: f64, /* The ratio of the ADC to Current values, used to scale samples to Volts */
-                                      /* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
+    /* (factor from datasheet with values Vref+= 1.2, Vref-= 0, Gain= 1) */
     pub adc_samples_seconds: f64,
     #[allow(dead_code)]
     pub num_harmonics: usize,
@@ -23,36 +23,59 @@ pub struct MetrologyInsight {
 }
 
 impl MetrologyInsight {
-    pub fn process_signal(&mut self, voltage_signal: &signal_processing::MetrologyInsightSignal, current_signal: &signal_processing::MetrologyInsightSignal) {
+    pub fn process_signal(
+        &mut self,
+        voltage_signal: &signal_processing::MetrologyInsightSignal,
+        current_signal: &signal_processing::MetrologyInsightSignal,
+    ) {
         let mut freq_zc: f64 = -1.0;
-        signal_processing::process_signal(&mut self.socket, &mut voltage_signal.clone(), &mut freq_zc, self.config.adc_voltage_d2a_factor, self.config.adc_samples_seconds, self.config.avg_sec);
-        signal_processing::process_signal(&mut self.socket, &mut current_signal.clone(), &mut freq_zc, self.config.adc_currents_d2a_factor, self.config.adc_samples_seconds, self.config.avg_sec);
+
+        signal_processing::process_signal(
+            &mut self.socket,
+            &mut voltage_signal.clone(),
+            &mut freq_zc,
+            self.config.adc_voltage_d2a_factor,
+            self.config.adc_samples_seconds,
+            self.config.avg_sec,
+        );
+        signal_processing::process_signal(
+            &mut self.socket,
+            &mut current_signal.clone(),
+            &mut freq_zc,
+            self.config.adc_currents_d2a_factor,
+            self.config.adc_samples_seconds,
+            self.config.avg_sec,
+        );
     }
 
     pub fn calculate_power_metrology(&mut self) {
-        let pfactor: f64 = self.config.adc_voltage_d2a_factor*self.config.adc_currents_d2a_factor;
+        let pfactor: f64 = self.config.adc_voltage_d2a_factor * self.config.adc_currents_d2a_factor;
 
         let real_power: f64 = power::calculate_real_power_from_signals(
             &self.socket.voltage_signal.signal,
-            &self.socket.current_signal.signal, 
-            self.socket.voltage_signal.length_cycle) / pfactor;
+            &self.socket.current_signal.signal,
+            self.socket.voltage_signal.length_cycle,
+        ) / pfactor;
 
         signal_processing::average(real_power, &mut self.socket.active_power, self.config.avg_sec);
 
         let react_power: f64 = power::calculate_react_power_from_signals(
             &self.socket.voltage_signal.signal,
-            &self.socket.current_signal.signal, 
-            self.socket.voltage_signal.length_cycle,) / pfactor;
+            &self.socket.current_signal.signal,
+            self.socket.voltage_signal.length_cycle,
+        ) / pfactor;
 
         signal_processing::average(react_power, &mut self.socket.reactive_power, self.config.avg_sec);
 
         self.socket.apparent_power = power::calculate_apparent_power_from_real_and_reactive_power(
             self.socket.active_power,
-            self.socket.reactive_power);
+            self.socket.reactive_power,
+        );
 
         self.socket.power_factor = power::calculate_power_factor_from_apparent_and_real_power(
             self.socket.apparent_power,
-            self.socket.active_power);
+            self.socket.active_power,
+        );
 
         //When phase 1 voltage is not valid, use phase 1 current as reference angle. Lenght cycle and zc freq are the same on both voltage and current signals.
         let voltage_angle = voltage_current::calculate_phase_angle_from_signal_values(
@@ -60,7 +83,8 @@ impl MetrologyInsight {
             &self.socket.voltage_signal.signal,
             self.socket.voltage_signal.freq_zc,
             self.socket.voltage_signal.length_cycle,
-        self.config.adc_samples_seconds);
+            self.config.adc_samples_seconds,
+        );
 
         signal_processing::average(voltage_angle, &mut self.socket.voltage_angle, self.config.avg_sec);
 
@@ -69,12 +93,15 @@ impl MetrologyInsight {
             &self.socket.current_signal.signal,
             self.socket.current_signal.freq_zc,
             self.socket.current_signal.length_cycle,
-            self.config.adc_samples_seconds);
+            self.config.adc_samples_seconds,
+        );
 
         signal_processing::average(current_angle, &mut self.socket.current_angle, self.config.avg_sec);
 
-        self.socket.c2v_angle = power::calculate_phase_angle_from_power_factor_and_react_power(self.socket.power_factor, self.socket.reactive_power);
-
+        self.socket.c2v_angle = power::calculate_phase_angle_from_power_factor_and_react_power(
+            self.socket.power_factor,
+            self.socket.reactive_power,
+        );
     }
 
     pub fn calculate_energy_metrology(&mut self) {
@@ -88,7 +115,7 @@ impl MetrologyInsight {
         println!("\tFz: {:?}", self.socket.voltage_signal.freq_zc);
         println!("\tRMS: {:?}", self.socket.voltage_signal.rms);
         println!("\tAngle: {:?}", self.socket.voltage_angle);
-        
+
         println!("Current: ");
         println!("\tPeak: {:?}", self.socket.current_signal.peak);
         println!("\tFz: {:?}", self.socket.current_signal.freq_zc);
@@ -96,7 +123,7 @@ impl MetrologyInsight {
         println!("\tsc_thres: {:?}", self.socket.current_signal.sc_thres);
         println!("\tAngle: {:?}", self.socket.current_angle);
 
-        println!("c2v Angle: {:?}\n", self.socket.c2v_angle);        
+        println!("c2v Angle: {:?}\n", self.socket.c2v_angle);
     }
 
     #[allow(dead_code)]
