@@ -23,18 +23,10 @@ use std::thread;
 use std::time::Duration;
 
 mod metrology_insight;
-use metrology_insight::signal_processing::{MetrologyInsightSignal, ADC_SAMPLES_50HZ_CYCLE};
-
-const VREF: f64 = 1.8; //  VREF del ADC (Milk-V Duo: 1.8V)
-const ADC_RESOLUTION: f64 = 4095.0; // Resolución del ADC de 12 bits (0 - 4095)
-const ADC_INT_DIVISOR: f64 = 0.5; // Divisor interno del ADC (3.3V → 1.65V)
-const FACTOR_DIVISORS_SCALE: f64 = 1.0 / (ADC_INT_DIVISOR); // Factor total de escala para deshacer ambos divisores
-const ADC_SENSITIVITY: f64 = 1170.0; //  Sensibilidad del ADC
-const ADC_VOLTAGE_FACTOR: f64 = (ADC_SENSITIVITY * VREF * FACTOR_DIVISORS_SCALE) / ADC_RESOLUTION; // Factor final para convertir directamente ADC → Voltaje original
+use metrology_insight::signal_processing::ADC_SAMPLES_50HZ_CYCLE;
 
 const SAMPLES_PER_CYCLE: usize = ADC_SAMPLES_50HZ_CYCLE;
-const ADC_SAMPLE_SECONDS: f64 = 7812.5; // 7812.5 N=fs​×Tciclo​=7812,5Hz×0,02s=156,25
-                                        //const ADC_VOLTAGE_FACTOR: f64 = 0.8; // 1059.91; float V_original = (adc_val * 5.4) / 4095.0;
+//const ADC_VOLTAGE_FACTOR: f64 = 0.8; // 1059.91; float V_original = (adc_val * 5.4) / 4095.0;
 
 /* IOCTL */
 const IOCTL_MAGIC: u8 = b'W'; // El mismo código mágico que en el kernel
@@ -58,20 +50,6 @@ fn main() {
     let mut signals = Signals::new(&[SIGUSR1, SIGUSR2]).expect("No se pudo registrar señales");
 
     let (tx, rx) = mpsc::channel::<(&[i32], &[i32])>();
-    let (tx_process_to_print, rx_process_to_print) = mpsc::channel::<()>();
-
-    let config = metrology_insight::MetrologyInsightConfig {
-        avg_sec: 0.02,
-        adc_voltage_d2a_factor: ADC_VOLTAGE_FACTOR,
-        adc_currents_d2a_factor: ADC_VOLTAGE_FACTOR,
-        adc_samples_seconds: ADC_SAMPLE_SECONDS,
-        num_harmonics: 0,
-    };
-
-    let insight = Arc::new(Mutex::new(metrology_insight::MetrologyInsight {
-        socket: Default::default(), // Default socket initialization
-        config: config,
-    }));
 
     thread::spawn(move || {
         //println!("¡Recibida SIGUSR1 del kernel!");
@@ -154,77 +132,63 @@ fn main() {
 
     // Thread to process voltage/current waveform
     thread::spawn({
-        let consumer_insight = Arc::clone(&insight);
-
         move || {
             loop {
                 while let Ok((data_voltage_to_consume, data_current_to_consume)) = rx.recv() {
-                    //println!("Voltage: {:?}\n", data_voltage_to_consume);
-                    //println!("Current:  {:?}", data_current_to_consume);
+                    // Constantes de calibración (antes definidas con #define)
+                    const START_VALUE: f32 = 0.0;
+                    const STOP_VALUE: f32 = 100000.0;
+                    const STEP_VALUE: f32 = 0.1;
+                    const TOLERANCE: f32 = 0.10;
+                    const ADC_SCALE: f32 = 4095.0;
+                    const VREF: f32 = 1.8;
 
-                    let voltage_signal: MetrologyInsightSignal = MetrologyInsightSignal {
-                        signal: moving_average(data_voltage_to_consume.to_vec(), 2), // Buffer de la señal de voltaje
-                        length: SAMPLES_PER_CYCLE,                                   // Longitud del buffer de muestras
-                        integrate: false,     // Indica si la señal debe integrarse
-                        calc_freq: true,      // Indica si debe calcular la frecuencia
-                        ..Default::default()  // Los demás campos con valores predeterminados
+                    // Voltaje objetivo (equivalente a ACTUAL_VOLTAGE)
+                    const TARGET_VOLTAGE: f32 = /* pon aquí tu valor real */ 222.5;
+
+                    // 1) Offset
+                    let zero_v: f32 = {
+                        let sum: u32 = data_voltage_to_consume.iter().map(|&v| v as u32).sum();
+                        sum as f32 / data_voltage_to_consume.len() as f32
                     };
 
-                    let current_signal = MetrologyInsightSignal {
-                        signal: moving_average(data_current_to_consume.to_vec(), 2), // Buffer de la señal de corriente
-                        length: SAMPLES_PER_CYCLE,                                   // Longitud del buffer de muestras
-                        integrate: true,      // Indica si la señal debe integrarse
-                        calc_freq: false,     // Indica si la frecuencia no debe calcularse
-                        ..Default::default()  // Los demás campos con valores predeterminados
+                    // Función de RMS parametrizada en sensibilidad
+                    let calc_rms = |sensitivity: f32| {
+                        let sum_sq: f32 = data_voltage_to_consume
+                            .iter()
+                            .map(|&raw| {
+                                let v = raw as f32 - zero_v;
+                                v * v
+                            })
+                            .sum();
+                        let mean_sq = sum_sq / data_voltage_to_consume.len() as f32;
+                        (mean_sq.sqrt() / ADC_SCALE) * VREF * sensitivity
                     };
-                    /*
-                        print!(
-                            "{},",
-                            voltage_signal
-                                .signal
-                                .iter()
-                                .map(|v| v.to_string())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        );
-                    */
-                    let mut c_insight = consumer_insight.lock().unwrap();
-                    // Llamada a `process_signal` y cálculo de metrología
-                    c_insight.process_signal(&voltage_signal, &current_signal);
-                    c_insight.calculate_power_metrology();
-                    c_insight.calculate_energy_metrology();
 
-                    if tx_process_to_print.send(()).is_err() {
-                        eprintln!("Error: Receiver has dropped");
-                        break;
+                    // 2) Bucle de calibración de sensibilidad
+                    let mut sensitivity = START_VALUE;
+                    let mut measured = calc_rms(sensitivity);
+
+                    while (measured - TARGET_VOLTAGE).abs() > TOLERANCE {
+                        if sensitivity + STEP_VALUE <= STOP_VALUE {
+                            sensitivity += STEP_VALUE;
+                            measured = calc_rms(sensitivity);
+                            //println!("{:.2} → {:.3}", sensitivity, measured);
+                        } else {
+                            eprintln!("No se pudo determinar un valor de sensibilidad válido");
+                            break;
+                        }
                     }
+
+                    // 3) Una vez dentro de tolerancia, lo enviamos
+                    println!(
+                        "Sensibilidad calibrada: {:.2}, Voltaje RMS = {:.3} V (dentro de ±{:.1} V)",
+                        sensitivity, measured, TOLERANCE
+                    );
                 }
             }
         }
     });
-
-    // Tarea del tercer hilo para ejecutar funciones cada segundo
-    thread::spawn({
-        let insight_print: Arc<Mutex<metrology_insight::MetrologyInsight>> = Arc::clone(&insight);
-        let mut second_ctr: i32 = 0;
-
-        move || {
-            thread::sleep(Duration::from_secs(5)); // Espera de 1 segundos
-
-            loop {
-                while let Ok(()) = rx_process_to_print.recv() {
-                    second_ctr = (second_ctr + 1) % 50; //While measures are computed every second, always send to print, no skip.
-                    if second_ctr == 0 {
-                        let mut insight = insight_print.lock().unwrap();
-                        insight.print_signal();
-                        //insight.print_power();
-                        //insight.print_energy();
-                    }
-                }
-            }
-        }
-    });
-
     // Evitar que el hilo principal termine, haciendo una espera indefinida.
     loop {
         thread::sleep(Duration::from_secs(1)); // Espera de 1 segundos
@@ -245,18 +209,4 @@ fn load_module(module: &str) {
         .arg(command)
         .output()
         .expect("Error al cargar el módulo");
-}
-
-#[allow(dead_code)]
-fn moving_average(signal: Vec<i32>, window_size: usize) -> Vec<i32> {
-    let len = signal.len();
-    let mut buffer = signal.clone();
-    for i in 0..len {
-        let start = if i >= window_size { i - window_size } else { 0 };
-        let end = i + 1;
-        let sum: i32 = buffer[start..end].iter().copied().sum();
-        buffer[i] = sum / (end - start) as i32; // Promedio entero
-    }
-
-    buffer
 }
