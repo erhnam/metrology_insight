@@ -29,7 +29,18 @@ impl MetrologyInsight {
         current_signal: &signal_processing::MetrologyInsightSignal,
     ) {
         let mut freq_zc: f64 = -1.0;
-
+        //println!("Voltage signal: {:?}", voltage_signal.signal);
+        /*
+            print!(
+                "{},",
+                voltage_signal
+                    .signal
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        */
         signal_processing::process_signal(
             &mut self.socket,
             &mut voltage_signal.clone(),

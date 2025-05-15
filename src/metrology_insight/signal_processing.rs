@@ -4,7 +4,7 @@ use crate::metrology_insight::voltage_current;
 const FREQ_NOMINAL_50: f64 = 50.0;
 const FREQ_NOMINAL_60: f64 = 60.0;
 
-pub const ADC_SAMPLES_50HZ_CYCLE: usize = 157; /* round(ADC_SAMPLES_SECOND / 50)*/
+pub const ADC_SAMPLES_50HZ_CYCLE: usize = 156; /* N=fs​×Tciclo​=7812,5Hz×0,02s=156,25 */
 const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
 const FREQ_ZC_DEBOUNCE: u32 = 5;

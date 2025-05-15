@@ -27,14 +27,13 @@ use metrology_insight::signal_processing::{MetrologyInsightSignal, ADC_SAMPLES_5
 
 const VREF: f64 = 1.8; //  VREF del ADC (Milk-V Duo: 1.8V)
 const ADC_RESOLUTION: f64 = 4095.0; // Resolución del ADC de 12 bits (0 - 4095)
-const ADC_EXT_DIVISOR: f64 = 2.0 / 3.0; //  Divisor externo (5V → 3.3V usando 1M / 2M o 1k / 2k)
 const ADC_INT_DIVISOR: f64 = 0.5; // Divisor interno del ADC (3.3V → 1.65V)
-const FACTOR_DIVISORS_SCALE: f64 = 1.0 / (ADC_INT_DIVISOR * ADC_EXT_DIVISOR); // Factor total de escala para deshacer ambos divisores
-const ADC_SENSITIVITY: f64 = 845.0; // 1059.91; // Sensibilidad del ADC (0.8V por cada 1V de entrada)
+const FACTOR_DIVISORS_SCALE: f64 = 1.0 / (ADC_INT_DIVISOR); // Factor total de escala para deshacer ambos divisores
+const ADC_SENSITIVITY: f64 = 1140.0; // 1059.91; // Sensibilidad del ADC (0.8V por cada 1V de entrada)
 const ADC_VOLTAGE_FACTOR: f64 = ADC_SENSITIVITY * VREF * FACTOR_DIVISORS_SCALE / ADC_RESOLUTION; // Factor final para convertir directamente ADC → Voltaje original
 
 const SAMPLES_PER_CYCLE: usize = ADC_SAMPLES_50HZ_CYCLE;
-const ADC_SAMPLE_SECONDS: f64 = 7812.5; // 7812.5
+const ADC_SAMPLE_SECONDS: f64 = 7812.5; // 7812.5 N=fs​×Tciclo​=7812,5Hz×0,02s=156,25
                                         //const ADC_VOLTAGE_FACTOR: f64 = 0.8; // 1059.91; float V_original = (adc_val * 5.4) / 4095.0;
 
 /* IOCTL */
@@ -123,7 +122,13 @@ fn main() {
                 println!("Timer started successfully");
             }
 
+            let mut skip_count = 0;
+
             for signal in signals.forever() {
+                if skip_count < 156 {
+                    skip_count += 1;
+                    continue; // Ignorar las primeras 4 señales
+                }
                 match signal {
                     SIGUSR1 => {
                         // El canal transmite los datos a través del hilo
@@ -166,13 +171,23 @@ fn main() {
                     };
 
                     let current_signal = MetrologyInsightSignal {
-                        signal: moving_average(data_current_to_consume.to_vec(), 10), // Buffer de la señal de corriente
-                        length: SAMPLES_PER_CYCLE,                                    // Longitud del buffer de muestras
+                        signal: moving_average(data_current_to_consume.to_vec(), 2), // Buffer de la señal de corriente
+                        length: SAMPLES_PER_CYCLE,                                   // Longitud del buffer de muestras
                         integrate: true,      // Indica si la señal debe integrarse
                         calc_freq: false,     // Indica si la frecuencia no debe calcularse
                         ..Default::default()  // Los demás campos con valores predeterminados
                     };
-
+                    /*
+                        print!(
+                            "{},",
+                            voltage_signal
+                                .signal
+                                .iter()
+                                .map(|v| v.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
+                    */
                     let mut c_insight = consumer_insight.lock().unwrap();
                     // Llamada a `process_signal` y cálculo de metrología
                     c_insight.process_signal(&voltage_signal, &current_signal);
@@ -194,6 +209,8 @@ fn main() {
         let mut second_ctr: i32 = 0;
 
         move || {
+            thread::sleep(Duration::from_secs(5)); // Espera de 1 segundos
+
             loop {
                 while let Ok(()) = rx_process_to_print.recv() {
                     second_ctr = (second_ctr + 1) % 50; //While measures are computed every second, always send to print, no skip.
@@ -210,7 +227,7 @@ fn main() {
 
     // Evitar que el hilo principal termine, haciendo una espera indefinida.
     loop {
-        thread::sleep(Duration::from_secs(1)); // Espera de 60 segundos
+        thread::sleep(Duration::from_secs(1)); // Espera de 1 segundos
     }
 }
 
