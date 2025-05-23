@@ -1,6 +1,6 @@
-/* ----------------- Phase Angle Functions ------------------ */
+use crate::{MetrologyInsightSocket, PhaseAngleMetrics, PhaseDirection};
 
-use super::types::{MetrologyInsightSocket, PhaseAngleMetrics, PhaseDirection};
+/* ----------------- Phase Angle Functions ------------------ */
 
 #[allow(dead_code)]
 /*

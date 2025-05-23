@@ -15,9 +15,9 @@ const NOISE_RANDOM_PERCENT: f64 = 0.0;
 
 const FS: f64 = 7812.5; // Sampling frequency
 const F: f64 = 50.0; // Frequency in Hz
-const N_SAMPLES: usize = 177; // Number of samples #same number used in FW #int((Fs/F)) # Fs/F --> nearest integer
-const VIN_TO_COUNTS: f64 = 9289.14;
-const AMPS_TO_COUNTS: f64 = 1048.5760;
+const N_SAMPLES: usize = 156; // Number of samples #same number used in FW #int((Fs/F)) # Fs/F --> nearest integer
+pub const VIN_TO_COUNTS: f64 = 9289.14;
+pub const AMPS_TO_COUNTS: f64 = 1048.5760;
 
 const ENABLE_HARMONICS: bool = false;
 const HARM_FREQ: f64 = F * 5.0;

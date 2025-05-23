@@ -1,0 +1,14 @@
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "rust-std"]
+targets = [
+  "riscv64gc-unknown-linux-musl",
+#  "x86_64-unknown-linux-gnu",
+#  "aarch64-unknown-linux-gnu"
+]
+
+[build]
+rustflags = [
+  "-Zbuild-std=std,core",
+  "-Zbuild-std-features=compiler-builtins-mem"
+]

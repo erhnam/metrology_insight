@@ -1,5 +1,31 @@
-use crate::metrology_insight::types::*;
-use crate::metrology_insight::voltage_current::calculate_rms;
+use crate::{
+    calculate_rms, MetrologyInsightSignal, MetrologyInsightSignalType, MetrologyInsightSocket, ADC_SAMPLES_50HZ_CYCLE,
+    ADC_SAMPLES_60HZ_CYCLE, FREQ_NOMINAL_50, FREQ_NOMINAL_60,
+};
+
+pub const ZERO_CROSSING_MAX_POINTS: usize = 3; // Maximum number of zero crossing points to store // Para 1 ciclo, 2 cruces por cero (ascendente + descendente)
+pub const FREQ_ZC_DEBOUNCE: u32 = 2;
+
+pub const EXTRA_SAMPLES: usize = 0; /* Extra samples to a cycle to get zero crossing */
+
+#[allow(dead_code)]
+/*
+* @brief Calculate the moving average of a signal in-place
+* @param signal Mutable slice of the signal to calculate the moving average
+* @param window_size Size of the moving average window
+* @note The input signal slice will be modified with the moving average values
+*/
+fn moving_average(signal: &mut [i32], window_size: usize) {
+    let len = signal.len();
+    let original = signal.to_vec(); // Clonamos para no modificar mientras calculamos
+
+    for i in 0..len {
+        let start = if i >= window_size { i - window_size } else { 0 };
+        let end = i + 1;
+        let sum: i32 = original[start..end].iter().copied().sum();
+        signal[i] = sum / (end - start) as i32; // Promedio entero
+    }
+}
 
 /*
 * @brief Is the frequency within the tolerance range?
@@ -194,6 +220,34 @@ pub fn convert_raw_to_real_wave(signal: &MetrologyInsightSignal) -> Vec<f64> {
     real_value
 }
 
+pub fn signal_integrate(s: &[f64], frequency_zc: f64, adc_samples_second: f64) -> Vec<f64> {
+    let mut integral: f64 = 0.0;
+    let mut res_signal: Vec<f64> = Vec::with_capacity(s.len());
+
+    // RMS original (sin integrar)
+    let orms = calculate_rms(&s, s.len(), frequency_zc, adc_samples_second);
+
+    // Integración trapezoidal acumulativa
+    for i in 0..s.len() {
+        let y_x = s[i];
+        let y_x1 = if i + 1 < s.len() { s[i + 1] } else { y_x };
+        integral += (y_x + y_x1) / 2.0;
+        res_signal.push(integral);
+    }
+
+    // Calcular RMS de la señal integrada
+    let integral_rms = calculate_rms(&res_signal, s.len(), frequency_zc, adc_samples_second);
+
+    // Normalizar a 0 dB
+    let int_k = if orms != 0.0 { integral_rms / orms } else { 1.0 };
+
+    for i in 0..res_signal.len() {
+        res_signal[i] = res_signal[i] / int_k;
+    }
+
+    res_signal
+}
+
 /*
 * @brief Process a signal.
 * @param socket Pointer to the MetrologyInsightSocket structure.
@@ -208,6 +262,7 @@ pub fn process_signal(
     adc_samples_second: f64,
     avg_sec: f64,
 ) {
+    moving_average(&mut signal.wave, 3);
     if is_signal_valid(&signal.wave, signal.signal_type) {
         remove_signal_offset(&mut signal.wave);
 
@@ -231,6 +286,13 @@ pub fn process_signal(
         signal.freq_nominal = calculate_nominal_frequency(freq_zc, &mut signal.length, signal.freq_nominal);
         signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
         signal.length = signal.length_cycle + EXTRA_SAMPLES;
+
+        match signal.signal_type {
+            MetrologyInsightSignalType::Voltage => {}
+            MetrologyInsightSignalType::Current => {
+                signal_integrate(&real_wave, signal.freq_zc, adc_samples_second);
+            }
+        }
 
         // Calculate Peak
         let peak = real_wave.iter().copied().fold(f64::MIN, f64::max);

@@ -4,11 +4,6 @@ pub const FREQ_NOMINAL_60: f64 = 60.0;
 pub const ADC_SAMPLES_50HZ_CYCLE: f64 = 156.0; /* N=fs​×Tciclo​=7812,5Hz×0,02s=156,25 */
 pub const ADC_SAMPLES_60HZ_CYCLE: usize = 131;
 
-pub const FREQ_ZC_DEBOUNCE: u32 = 2;
-pub const ZERO_CROSSING_MAX_POINTS: usize = 3; // Maximum number of zero crossing points to store // Para 1 ciclo, 2 cruces por cero (ascendente + descendente)
-
-pub const EXTRA_SAMPLES: usize = 0; /* Extra samples to a cycle to get zero crossing */
-
 pub const NUMBER_HARMONICS: usize = 10;
 
 pub const MIN_AMPLITUDE_VOLTAGE: f64 = 80.0;

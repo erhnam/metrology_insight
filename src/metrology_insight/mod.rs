@@ -1,4 +1,5 @@
 pub mod energy;
+pub mod generate_signal;
 pub mod phase;
 pub mod power;
 pub mod print;

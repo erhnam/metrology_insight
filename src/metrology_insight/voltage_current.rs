@@ -1,3 +1,12 @@
+/*
+*@brief Calculate the signal power
+* @param signal1 Pointer to the first signal array.
+* @param signal2 Pointer to the second signal array.
+* @param length Length of the signals.
+* @param frequency Frequency of the signals.
+* @param adc_samples_second ADC samples per second.
+* @param data Pointer to the MetrologyInsightSocket structure.
+*/
 fn calculate_signal_power(
     signal1: &[f64],
     signal2: &[f64],
@@ -34,7 +43,7 @@ fn calculate_signal_power(
     // Interpolación para la parte fraccional
     if d_length != 0.0 && n_length_usize + 1 < signal1.len() && n_length_usize + 1 < signal2.len() {
         if n_length_usize + 1 >= signal1.len() || n_length_usize + 1 >= signal2.len() {
-            println!("Error: signal length is too short for interpolation.");
+            log::info!("Error: signal length is too short for interpolation.");
             return 0.0;
         }
         let ysample1 = signal1[n_length_usize] as f64
@@ -47,6 +56,14 @@ fn calculate_signal_power(
     square / p_length
 }
 
+/*
+*@brief Calculate the RMS value of a signal
+* @param signal Pointer to the signal array.
+* @param length_cycle Length of the cycle.
+* @param frequency Frequency of the signal.
+* @param adc_samples_second ADC samples per second.
+* @return The RMS value of the signal.
+*/
 pub fn calculate_rms(signal: &[f64], length_cycle: usize, frequency: f64, adc_samples_second: f64) -> f64 {
     if length_cycle == 0 || signal.is_empty() {
         return 0.0;

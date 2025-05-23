@@ -1,4 +1,4 @@
-use crate::metrology_insight::types::*;
+use crate::{ActiveEnergyMetrics, EnergyMetrics, MetrologyInsightSocket, ReactiveEnergyMetrics};
 
 const JOULES_TO_KWH: f64 = 1.0 / (3600.0 * 1000.0); // Constant to convert Joules to kWh (1 kWh = 3.6e6 J)
 

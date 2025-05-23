@@ -1,4 +1,4 @@
-use crate::metrology_insight::types::*;
+use crate::{MetrologyInsightSignal, MetrologyInsightSocket, PowerMetrics};
 
 #[allow(dead_code)]
 
