@@ -7,7 +7,6 @@ use nix::libc::{mmap, MAP_FAILED, MAP_SHARED, PROT_READ};
 use nix::{ioctl_none, ioctl_read};
 use signal_hook::consts::signal::*;
 use signal_hook::iterator::Signals;
-use std::cmp::Reverse;
 #[warn(dead_code)]
 use std::fs::OpenOptions;
 use std::os::unix::io::AsRawFd;
@@ -46,11 +45,21 @@ impl SharedBuffers {
 /// GUI app that reads from shared state
 struct OscilloscopeApp {
     buffers: Arc<Mutex<SharedBuffers>>,
+    display_volt_buffer: Vec<f64>,
+    display_curr_buffer: Vec<f64>,
+    next_sample_index: usize, // para saber qué muestra añadir la próxima vez
+    max_samples: usize,       // tamaño de ventana máxima
 }
 
 impl OscilloscopeApp {
-    fn new(buffers: Arc<Mutex<SharedBuffers>>) -> Self {
-        Self { buffers }
+    fn new(buffers: Arc<Mutex<SharedBuffers>>, max_samples: usize) -> Self {
+        Self {
+            buffers,
+            display_volt_buffer: Vec::with_capacity(max_samples),
+            display_curr_buffer: Vec::with_capacity(max_samples),
+            next_sample_index: 0,
+            max_samples,
+        }
     }
 
     fn calc_rms(buffer: &[f64]) -> f64 {
@@ -65,17 +74,45 @@ impl OscilloscopeApp {
 
 impl App for OscilloscopeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
-        // Lock and clone data for drawing
         let (volt_data, curr_data) = {
             let guard = self.buffers.lock().unwrap();
             (guard.volt_buffer.clone(), guard.curr_buffer.clone())
         };
 
-        // Time step in seconds (e.g., 1s / samples per second)
-        let dt = 128e-6 as f64;
+        if volt_data.is_empty() || curr_data.is_empty() {
+            // No hay datos, no hacemos nada
+            ctx.request_repaint();
+            return;
+        }
 
-        let volt_points: PlotPoints = volt_data.iter().enumerate().map(|(i, &v)| [i as f64 * dt, v]).collect();
-        let curr_points: PlotPoints = curr_data.iter().enumerate().map(|(i, &v)| [i as f64 * dt, v]).collect();
+        // Índice circular para la muestra que vamos a añadir
+        let idx = self.next_sample_index % volt_data.len();
+
+        self.display_volt_buffer.push(volt_data[idx]);
+        self.display_curr_buffer.push(curr_data[idx]);
+
+        self.next_sample_index += 1;
+
+        // Mantener tamaño máximo de buffer
+        if self.display_volt_buffer.len() > self.max_samples {
+            self.display_volt_buffer.remove(0);
+            self.display_curr_buffer.remove(0);
+        }
+
+        let dt = 128e-6;
+
+        let volt_points: PlotPoints = self
+            .display_volt_buffer
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| [i as f64 * dt, v])
+            .collect();
+        let curr_points: PlotPoints = self
+            .display_curr_buffer
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| [i as f64 * dt, v])
+            .collect();
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Osciloscopio Voltaje y Corriente");
@@ -83,7 +120,6 @@ impl App for OscilloscopeApp {
                 .legend(Legend::default())
                 .view_aspect(2.0)
                 .show(ui, |plot_ui| {
-                    //plot_ui.set_plot_bounds(PlotBounds::from_min_max([0.0, -1.5], [dt * max_samples as f64, 1.5]));
                     plot_ui.line(Line::new("Voltaje", volt_points).color(egui::Color32::RED));
                     plot_ui.line(Line::new("Corriente", curr_points).color(egui::Color32::BLUE));
                 });
@@ -91,13 +127,13 @@ impl App for OscilloscopeApp {
             ui.horizontal(|ui| {
                 ui.group(|ui| {
                     ui.label("RMS Voltaje:");
-                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&volt_data));
+                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&self.display_volt_buffer));
                     ui.add(egui::TextEdit::singleline(&mut txt).interactive(false));
                 });
                 ui.add_space(20.0);
                 ui.group(|ui| {
                     ui.label("RMS Corriente:");
-                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&curr_data));
+                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&self.display_curr_buffer));
                     ui.add(egui::TextEdit::singleline(&mut txt).interactive(false));
                 });
             });
@@ -114,6 +150,10 @@ struct Args {
     /// Simulate signal samples instead of reading from hardware
     #[arg(short = 's', long = "Simulate Samples")]
     simulate: bool,
+
+    /// Simulate signal samples instead of reading from hardware
+    #[arg(short = 'g', long = "Use GUI")]
+    gui: bool,
 }
 
 const VREF: f64 = 1.8; // ADC reference voltage (Milk-V Duo: 1.8V)
@@ -274,14 +314,14 @@ fn main() -> Result<(), eframe::Error> {
             loop {
                 while let Ok((data_voltage_to_consume, data_current_to_consume)) = rx.recv() {
                     /*
-                                        print!(
-                                            "{},",
-                                            data_voltage_to_consume
-                                                .iter()
-                                                .map(|v| v.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(", ")
-                                        );
+                        print!(
+                            "{},",
+                            data_voltage_to_consume
+                                .iter()
+                                .map(|v| v.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        );
                     */
                     // Determinar factores condicionalmente
                     let (voltage_adc_factor, current_adc_factor, current_adc_scale) = if args.simulate {
@@ -311,13 +351,18 @@ fn main() -> Result<(), eframe::Error> {
 
                     let mut c_insight = consumer_insight.lock().unwrap();
 
-                    // Metrology Calculation
-                    c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
-
-                    if tx_process_to_print.send(()).is_err() {
-                        log::error!("Error: Receiver has dropped");
-                        break;
+                    if args.gui {
+                        // Metrology Calculation
+                        c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
+                        buffers_thread.lock().unwrap().load_samples(
+                            &c_insight.socket.voltage_signal.real_wave,
+                            &c_insight.socket.current_signal.real_wave,
+                        );
+                    } else {
+                        // Metrology Calculation
+                        c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
                     }
+
                     if tx_process_to_print.send(()).is_err() {
                         log::error!("Error: Receiver has dropped");
                         break;
@@ -335,7 +380,6 @@ fn main() -> Result<(), eframe::Error> {
         move || {
             thread::sleep(Duration::from_secs(5)); // Wait 5 seconds before starting to print
 
-            let mut reverse = false;
             loop {
                 while let Ok(()) = rx_process_to_print.recv() {
                     second_ctr = (second_ctr + 1) % 50; //While measures are computed every second, always send to print, no skip.
@@ -343,34 +387,25 @@ fn main() -> Result<(), eframe::Error> {
                         let mut insight = insight_print.lock().unwrap();
 
                         insight.print_metrology_report();
-
-                        if reverse {
-                            let volt_inv: Vec<f64> =
-                                insight.socket.voltage_signal.real_wave.iter().rev().cloned().collect();
-                            let curr_inv: Vec<f64> =
-                                insight.socket.current_signal.real_wave.iter().rev().cloned().collect();
-
-                            buffers_thread.lock().unwrap().load_samples(&volt_inv, &curr_inv);
-                            reverse = false;
-                        } else {
-                            buffers_thread.lock().unwrap().load_samples(
-                                &insight.socket.voltage_signal.real_wave,
-                                &insight.socket.current_signal.real_wave,
-                            );
-                            reverse = true;
-                        }
                     }
                 }
             }
         }
     });
 
-    // Above threads are running, now we can wait for signals
-    eframe::run_native(
-        "Osciloscopio Voltaje y Corriente",
-        options,
-        Box::new(move |_cc| Ok(Box::new(OscilloscopeApp::new(buffers.clone())))),
-    )
+    if args.gui {
+        // Above threads are running, now we can wait for signals
+        eframe::run_native(
+            "Osciloscopio Voltaje y Corriente",
+            options,
+            Box::new(move |_cc| Ok(Box::new(OscilloscopeApp::new(buffers.clone(), 624)))),
+        )
+    } else {
+        // Devuelve algo compatible o simplemente retorna Ok(()) o ()
+        loop {
+            thread::sleep(Duration::from_secs(1)); // Wait 5 seconds before starting to print
+        }
+    }
 }
 
 /*
