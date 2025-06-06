@@ -1,8 +1,8 @@
 use metrology_insight::{
-    generate_signals, MetrologyInsight, MetrologyInsightConfig, MetrologyInsightSignal, MetrologyInsightSignalType,
-    ADC_SAMPLES_50HZ_CYCLE, AMPS_TO_COUNTS, VIN_TO_COUNTS,
+    generate_signals, MetrologyInsight, MetrologyInsightConfig, MetrologyInsightSignal, MetrologyInsightSignalType, ADC_SAMPLES_50HZ_CYCLE, AMPS_TO_COUNTS, VIN_TO_COUNTS
 };
 
+use metrology_proto::metrology_insight::Empty;
 use nix::libc::{mmap, MAP_FAILED, MAP_SHARED, PROT_READ};
 use nix::{ioctl_none, ioctl_read};
 use signal_hook::consts::signal::*;
@@ -17,132 +17,31 @@ use std::thread;
 use std::time::Duration;
 
 use clap::Parser;
+use tonic::{transport::Server, Request, Response, Status};
 
-use eframe::{egui, App, Frame, NativeOptions};
-use egui_plot::{Legend, Line, Plot, PlotPoints};
+use metrology_proto::generated::metrology_insight::metrology_insight_service_server::{
+    MetrologyInsightService,            // Trait que tú implementas
+    MetrologyInsightServiceServer,      // Servidor Tonic
+};
 
-// Shared state holding latest buffers
-struct SharedBuffers {
-    volt_buffer: Vec<f64>,
-    curr_buffer: Vec<f64>,
+pub struct MyMetrologyService {
+    insight: Arc<Mutex<MetrologyInsight>>,
 }
 
-impl SharedBuffers {
-    fn new(max_samples: usize) -> Self {
-        SharedBuffers {
-            volt_buffer: Vec::with_capacity(max_samples),
-            curr_buffer: Vec::with_capacity(max_samples),
-        }
-    }
+#[tonic::async_trait]
+impl MetrologyInsightService for MyMetrologyService {
+    async fn get_socket_data(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<metrology_proto::metrology_insight::MetrologyInsightSocket>, Status> {
+        let insight = self.insight.lock().unwrap();
+        let socket = insight.socket.clone();
 
-    /// Load external i32 samples, convert to f64, keep last max_samples
-    fn load_samples(&mut self, volt_samples: &[f64], curr_samples: &[f64]) {
-        self.volt_buffer = volt_samples.to_vec();
-        self.curr_buffer = curr_samples.to_vec();
-    }
-}
+        let proto_socket = socket.into_proto();
 
-/// GUI app that reads from shared state
-struct OscilloscopeApp {
-    buffers: Arc<Mutex<SharedBuffers>>,
-    display_volt_buffer: Vec<f64>,
-    display_curr_buffer: Vec<f64>,
-    next_sample_index: usize, // para saber qué muestra añadir la próxima vez
-    max_samples: usize,       // tamaño de ventana máxima
-}
-
-impl OscilloscopeApp {
-    fn new(buffers: Arc<Mutex<SharedBuffers>>, max_samples: usize) -> Self {
-        Self {
-            buffers,
-            display_volt_buffer: Vec::with_capacity(max_samples),
-            display_curr_buffer: Vec::with_capacity(max_samples),
-            next_sample_index: 0,
-            max_samples,
-        }
-    }
-
-    fn calc_rms(buffer: &[f64]) -> f64 {
-        if buffer.is_empty() {
-            0.0
-        } else {
-            let sum_sq: f64 = buffer.iter().map(|&v| v * v).sum();
-            (sum_sq / buffer.len() as f64).sqrt()
-        }
+        Ok(Response::new(proto_socket))
     }
 }
-
-impl App for OscilloscopeApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
-        let (volt_data, curr_data) = {
-            let guard = self.buffers.lock().unwrap();
-            (guard.volt_buffer.clone(), guard.curr_buffer.clone())
-        };
-
-        if volt_data.is_empty() || curr_data.is_empty() {
-            // No hay datos, no hacemos nada
-            ctx.request_repaint();
-            return;
-        }
-
-        // Índice circular para la muestra que vamos a añadir
-        let idx = self.next_sample_index % volt_data.len();
-
-        self.display_volt_buffer.push(volt_data[idx]);
-        self.display_curr_buffer.push(curr_data[idx]);
-
-        self.next_sample_index += 1;
-
-        // Mantener tamaño máximo de buffer
-        if self.display_volt_buffer.len() > self.max_samples {
-            self.display_volt_buffer.remove(0);
-            self.display_curr_buffer.remove(0);
-        }
-
-        let dt = 128e-6;
-
-        let volt_points: PlotPoints = self
-            .display_volt_buffer
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| [i as f64 * dt, v])
-            .collect();
-        let curr_points: PlotPoints = self
-            .display_curr_buffer
-            .iter()
-            .enumerate()
-            .map(|(i, &v)| [i as f64 * dt, v])
-            .collect();
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Osciloscopio Voltaje y Corriente");
-            Plot::new("osciloscope")
-                .legend(Legend::default())
-                .view_aspect(2.0)
-                .show(ui, |plot_ui| {
-                    plot_ui.line(Line::new("Voltaje", volt_points).color(egui::Color32::RED));
-                    plot_ui.line(Line::new("Corriente", curr_points).color(egui::Color32::BLUE));
-                });
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.group(|ui| {
-                    ui.label("RMS Voltaje:");
-                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&self.display_volt_buffer));
-                    ui.add(egui::TextEdit::singleline(&mut txt).interactive(false));
-                });
-                ui.add_space(20.0);
-                ui.group(|ui| {
-                    ui.label("RMS Corriente:");
-                    let mut txt = format!("{:.3}", OscilloscopeApp::calc_rms(&self.display_curr_buffer));
-                    ui.add(egui::TextEdit::singleline(&mut txt).interactive(false));
-                });
-            });
-        });
-
-        ctx.request_repaint();
-    }
-}
-
 /// Metrology Insight CLI
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Metrology Insight for Milk-V Duo", long_about = None)]
@@ -150,21 +49,16 @@ struct Args {
     /// Simulate signal samples instead of reading from hardware
     #[arg(short = 's', long = "Simulate Samples")]
     simulate: bool,
-
-    /// Simulate signal samples instead of reading from hardware
-    #[arg(short = 'g', long = "Use GUI")]
-    gui: bool,
 }
 
-const VREF: f64 = 1.8; // ADC reference voltage (Milk-V Duo: 1.8V)
+const VREF: f64 = 1.8; // 1.88 ADC reference voltage (Milk-V Duo: 1.8V)
 const ADC_RESOLUTION: f64 = 4095.0; // 12-bit ADC resolution (0 - 4095)
 const ADC_INT_DIVISOR: f64 = 0.5; // Internal ADC voltage divider (3.3V → 1.65V)
 const FACTOR_DIVISORS_SCALE: f64 = 1.0 / ADC_INT_DIVISOR; // Total scale factor to undo internal dividers
-const ADC_VOLTAGE_SENSITIVITY: f64 = 1265.0; // ADC Voltage sensitivity (mV/V) (Milk-V Duo: 1170 mV/V)
+const ADC_VOLTAGE_SENSITIVITY: f64 = 1170.0; // ADC Voltage sensitivity (mV/V) (Milk-V Duo: 1170 mV/V)
 const ADC_VOLTAGE_FACTOR: f64 = (ADC_VOLTAGE_SENSITIVITY * VREF * FACTOR_DIVISORS_SCALE) / ADC_RESOLUTION; // Final factor to convert ADC reading to original voltage
-
-const ADC_CURRENT_SCALE: f64 = 29.03; // ADC Current sensitivity for SCT013-030 (30A/1V) (calculated from burden resistor and ratio)
-const ADC_CURRENT_FACTOR: f64 = VREF / ADC_RESOLUTION; // Factor to convert ADC reading to voltage for current sensor
+const ADC_CURRENT_SCALE: f64 = 29.03; // ADC Current sensitivity for SCT013-030 (30A/1V) (calculated from burden resistor 62 Ohms and ratio)
+const ADC_CURRENT_FACTOR: f64 = VREF * FACTOR_DIVISORS_SCALE / ADC_RESOLUTION ; // Factor to convert ADC reading to voltage for current sensor
 
 const SAMPLES_PER_CYCLE: usize = ADC_SAMPLES_50HZ_CYCLE as usize;
 const ADC_SAMPLE_SECONDS: f64 = 7812.5; // Sampling frequency: fs × cycle time = 7812.5 Hz × 0.02s = 156.25 samples
@@ -180,15 +74,11 @@ ioctl_none!(start_timer, IOCTL_MAGIC, IOCTL_START_TIMER);
 ioctl_read!(ioctl_wait_buffer_switch, IOCTL_MAGIC, IOCTL_WAIT_BUFFER_SWITCH, i32);
 ioctl_none!(ioctl_register_pid, IOCTL_MAGIC, IOCTL_REGISTER_PID);
 
-fn main() -> Result<(), eframe::Error> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
-    let options = NativeOptions::default();
     let args = Args::parse();
-
-    let max_samples = ADC_SAMPLES_50HZ_CYCLE as usize;
-    let buffers = Arc::new(Mutex::new(SharedBuffers::new(max_samples)));
-    let buffers_thread = buffers.clone();
 
     if args.simulate {
         log::info!("Simulating signals instead of reading from hardware.");
@@ -316,7 +206,7 @@ fn main() -> Result<(), eframe::Error> {
                     /*
                         print!(
                             "{},",
-                            data_voltage_to_consume
+                            data_current_to_consume
                                 .iter()
                                 .map(|v| v.to_string())
                                 .collect::<Vec<_>>()
@@ -351,17 +241,7 @@ fn main() -> Result<(), eframe::Error> {
 
                     let mut c_insight = consumer_insight.lock().unwrap();
 
-                    if args.gui {
-                        // Metrology Calculation
-                        c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
-                        buffers_thread.lock().unwrap().load_samples(
-                            &c_insight.socket.voltage_signal.real_wave,
-                            &c_insight.socket.current_signal.real_wave,
-                        );
-                    } else {
-                        // Metrology Calculation
-                        c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
-                    }
+                    c_insight.process_and_update_metrics(&mut voltage_signal, &mut current_signal);
 
                     if tx_process_to_print.send(()).is_err() {
                         log::error!("Error: Receiver has dropped");
@@ -393,20 +273,21 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
 
-    if args.gui {
-        // Above threads are running, now we can wait for signals
-        eframe::run_native(
-            "Osciloscopio Voltaje y Corriente",
-            options,
-            Box::new(move |_cc| Ok(Box::new(OscilloscopeApp::new(buffers.clone(), 624)))),
-        )
-    } else {
-        // Devuelve algo compatible o simplemente retorna Ok(()) o ()
-        loop {
-            thread::sleep(Duration::from_secs(1)); // Wait 5 seconds before starting to print
-        }
-    }
+    let addr = "0.0.0.0:50051".parse()?;
+    let service = MyMetrologyService {
+        insight: Arc::clone(&insight),
+    };
+
+    log::info!("Servidor escuchando en {}", addr);
+
+    Server::builder()
+        .add_service(MetrologyInsightServiceServer::new(service))
+        .serve(addr)
+        .await?;
+
+    Ok(())
 }
+
 
 /*
 * @brief Check if the module is loaded

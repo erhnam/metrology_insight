@@ -19,8 +19,18 @@ const N_SAMPLES: usize = 156; // Number of samples #same number used in FW #int(
 pub const VIN_TO_COUNTS: f64 = 9289.14;
 pub const AMPS_TO_COUNTS: f64 = 1048.5760;
 
-const ENABLE_HARMONICS: bool = false;
+const ENABLE_HARMONICS: bool = true;
 const HARM_FREQ: f64 = F * 5.0;
+const VOLTAGE_HARMONICS: [(f64, f64); 2] = [
+    (3.0, 0.05), // 3ª armónica al 5% de VPEAK
+    (5.0, 0.02), // 5ª armónica al 2% de VPEAK
+];
+
+const CURRENT_HARMONICS: [(f64, f64); 2] = [
+    (7.0, 0.06), // 3ª armónica al 5% de VPEAK
+    (9.0, 0.03), // 5ª armónica al 2% de VPEAK
+];
+
 const VHPEAK: f64 = VPEAK * 0.5;
 const IHPEAK: f64 = IPEAK * 0.5;
 
@@ -87,13 +97,24 @@ pub fn generate_signals() -> Vec<Vec<i32>> {
 
     // Añadir armonías si están habilitadas
     if ENABLE_HARMONICS {
-        signal_v.iter_mut().enumerate().for_each(|(i, s)| {
-            *s += voltage(VHPEAK) * (offset(phase_offset) + (2.0 * PI * HARM_FREQ / FS * samples[i])).sin();
-        });
-        signal_i.iter_mut().enumerate().for_each(|(i, s)| {
-            *s += current(IHPEAK)
-                * (offset(phase_offset + 90.0) + offset(IPHASE) + (2.0 * PI * HARM_FREQ / FS * samples[i])).cos();
-        });
+        for (harm_order, perc) in VOLTAGE_HARMONICS.iter() {
+            let freq = F * harm_order;
+            let vpeak = VPEAK * perc;
+
+            signal_v.iter_mut().enumerate().for_each(|(i, s)| {
+                *s += voltage(vpeak) * (offset(phase_offset) + (2.0 * PI * freq / FS * samples[i])).sin();
+            });
+        }
+
+        for (harm_order, perc) in CURRENT_HARMONICS.iter() {
+            let freq = F * harm_order;
+            let ipeak = IPEAK * perc;
+
+            signal_i.iter_mut().enumerate().for_each(|(i, s)| {
+                *s += current(ipeak)
+                    * (offset(phase_offset + 90.0) + offset(IPHASE) + (2.0 * PI * freq / FS * samples[i])).cos();
+            });
+        }
     }
 
     // Sumar el desplazamiento de muestras y truncar los valores a enteros antes de almacenarlos

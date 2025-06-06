@@ -1,5 +1,6 @@
 pub mod energy;
 pub mod generate_signal;
+pub mod harmonics;
 pub mod phase;
 pub mod power;
 pub mod print;

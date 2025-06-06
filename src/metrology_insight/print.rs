@@ -25,6 +25,36 @@ pub fn print_current_signal(data: &MetrologyInsightSocket) {
 }
 
 /*
+* @brief Print the harmonics signal data.
+* @param data Pointer to the MetrologyInsightSocket structure.
+* @note This function prints the current signal data.
+*/
+pub fn print_harmonics(data: &MetrologyInsightSocket) {
+    log::info!("Voltage Harmonics:");
+    log::info!("  THD: {:.3} DB", data.voltage_signal.thd);
+    log::info!(
+        "  Harmonics: [{}]",
+        data.voltage_signal
+            .harmonics
+            .iter()
+            .map(|h| format!("{:.3}", h))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    log::info!("Current Harmonics:");
+    log::info!("  THD: {:.3} DB", data.current_signal.thd);
+    log::info!(
+        "  Harmonics: [{}]",
+        data.current_signal
+            .harmonics
+            .iter()
+            .map(|h| format!("{:.3}", h))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+}
+
+/*
 * @brief Print the power data
 * @param data Pointer to the MetrologyInsightSocket structure.
 * @note This function prints the power data.
@@ -93,6 +123,7 @@ pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
 pub fn print_all(data: &MetrologyInsightSocket) {
     print_voltage_signal(data);
     print_current_signal(data);
+    print_harmonics(data);
     print_power(data);
     print_phase_angle(data);
     print_active_energy(data);

@@ -19,9 +19,14 @@ spin_sleep = "1.2.1"
 log = "0.4"
 env_logger = "0.10"
 clap = { version = "4.5.38", features = ["derive"] }
-eframe = { version = "0.31", features = ["glow"] }  # o "wgpu" si prefieres
-egui_plot = "0.32.1"
+metrology-proto = { path = "../metrology-proto" }
+tonic = { version = "0.11", features = ["transport"] }
+tokio = { version = "1.0.0", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1.17"
+rustfft = { version = "6.1", default-features = false }
+realfft =  "3.4"
+microfft = "0.6.0"
 
-[profile.release]
-#lto = true
-#panic = "abort"
+[features]
+default = ["std"]
+std = []

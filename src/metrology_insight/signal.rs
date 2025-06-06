@@ -1,6 +1,7 @@
 use crate::{
-    calculate_rms, MetrologyInsightSignal, MetrologyInsightSignalType, MetrologyInsightSocket, ADC_SAMPLES_50HZ_CYCLE,
-    ADC_SAMPLES_60HZ_CYCLE, FREQ_NOMINAL_50, FREQ_NOMINAL_60,
+    calculate_rms, compute_harmonics_and_thd, resample_signal, MetrologyInsightSignal, MetrologyInsightSignalType,
+    MetrologyInsightSocket, ADC_SAMPLES_50HZ_CYCLE, ADC_SAMPLES_60HZ_CYCLE, FFT_RESOLUTION, FREQ_NOMINAL_50,
+    FREQ_NOMINAL_60,
 };
 
 pub const ZERO_CROSSING_MAX_POINTS: usize = 3; // Maximum number of zero crossing points to store // Para 1 ciclo, 2 cruces por cero (ascendente + descendente)
@@ -202,22 +203,29 @@ fn is_signal_valid(signal: &[i32], signal_type: MetrologyInsightSignalType) -> b
 }
 
 /*
-* @brief Convert a raw signal to a real signal.
-* @param signal Pointer to the signal buffer
-* @return Real signal buffer
-* @note This function converts a raw signal to a real signal.
+* @brief Convierte valores ADC crudos a unidades físicas (voltios o amperios)
+* @param signal Estructura con datos y parámetros de calibración
+* @return Vector de valores en unidades físicas
+*
+* @note Secuencia de procesamiento:
+* 1. Convertir raw ADC a voltaje (incluyendo offset)
+* 2. Remover offset DC solo para señales de corriente
+* 3. Aplicar factor de escala para obtener unidad final
 */
-pub fn convert_raw_to_real_wave(signal: &MetrologyInsightSignal) -> Vec<f64> {
-    let real_value: Vec<f64> = signal
+pub fn convert_raw_to_physical(signal: &MetrologyInsightSignal) -> Vec<f64> {
+    // Convertimos las muestras ADC a voltajes reales
+    let voltages: Vec<f64> = signal
         .wave
         .iter()
-        .map(|&raw| {
-            let voltaje_adc = raw as f64 * signal.adc_factor; // de RAW a voltios
-            voltaje_adc * signal.adc_scale
-        })
+        .map(|&valor| (valor as f64) * signal.adc_factor)
         .collect();
 
-    real_value
+    // Aplicamos el cálculo de corriente y corregimos el offset
+    if signal.is_current() {
+        voltages.iter().map(|&v| v * signal.adc_scale).collect()
+    } else {
+        voltages
+    }
 }
 
 pub fn signal_integrate(s: &[f64], frequency_zc: f64, adc_samples_second: f64) -> Vec<f64> {
@@ -267,7 +275,7 @@ pub fn process_signal(
         remove_signal_offset(&mut signal.wave);
 
         // Remove offset from the signal
-        let real_wave: Vec<f64> = convert_raw_to_real_wave(signal);
+        let real_wave: Vec<f64> = convert_raw_to_physical(signal);
 
         // Convert to volts
         let freq_zc = if signal.calc_freq {
@@ -287,11 +295,8 @@ pub fn process_signal(
         signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
         signal.length = signal.length_cycle + EXTRA_SAMPLES;
 
-        match signal.signal_type {
-            MetrologyInsightSignalType::Voltage => {}
-            MetrologyInsightSignalType::Current => {
-                signal_integrate(&real_wave, signal.freq_zc, adc_samples_second);
-            }
+        if signal.is_current() {
+            signal_integrate(&real_wave, signal.freq_zc, adc_samples_second);
         }
 
         // Calculate Peak
@@ -302,6 +307,38 @@ pub fn process_signal(
 
         // Calculate RMS
         let rms = calculate_rms(&real_wave, signal.length_cycle, signal.freq_zc, adc_samples_second);
+
+        // Calcular armónicos después de RMS
+        if signal.length_cycle >= FFT_RESOLUTION {
+            // Resamplear a 128 puntos (FFT_RESOLUTION)
+            let mut resampled = resample_signal(&real_wave, FFT_RESOLUTION);
+
+            // Calcular FFT, armónicos y THD
+            if let Some((harmonics, thd)) =
+                compute_harmonics_and_thd(&mut resampled, signal.freq_zc, adc_samples_second)
+            {
+                match signal.signal_type {
+                    MetrologyInsightSignalType::Voltage => {
+                        // Actualizar promedio de armónicos
+                        for i in 0..harmonics.len() {
+                            update_average(harmonics[i], &mut socket.voltage_signal.harmonics[i], avg_sec);
+                        }
+
+                        // Actualizar promedio de THD
+                        update_average(thd, &mut socket.voltage_signal.thd, avg_sec);
+                    }
+                    MetrologyInsightSignalType::Current => {
+                        // Actualizar promedio de armónicos
+                        for i in 0..harmonics.len() {
+                            update_average(harmonics[i], &mut socket.current_signal.harmonics[i], avg_sec);
+                        }
+
+                        // Actualizar promedio de THD
+                        update_average(thd, &mut socket.current_signal.thd, avg_sec);
+                    }
+                }
+            }
+        }
 
         // Asign values to signal
         match signal.signal_type {
