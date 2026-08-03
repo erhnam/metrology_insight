@@ -38,6 +38,11 @@ let u2_pct = insight.socket.unbalance_metrics.u2_neg_ratio_pct;   // Negative un
 
 ## Integration Strategy for Embedded Systems
 
+> **`no_std` + `alloc` contract**: `no_std` builds require a target with an
+> `alloc` allocator (ARM Cortex-M, ESP32/Xtensa, RISC-V with a heap). The core
+> heap-allocates via `Box` on initialization; allocator-less targets are not
+> supported. The `alloc` feature only adds optional test/simulation helpers.
+
 To avoid data loss (missed ADC samples) during intensive mathematical processing (FFT, THD, RMS), an asynchronous or multi-core architecture is recommended:
 
 1. **Acquisition (Core 0 or High Priority Task)**:

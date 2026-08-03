@@ -50,6 +50,17 @@
 |--------|--------|
 | Reactive energy (Q1–Q4 quadrant decomposition) | Algorithm implementation; pre-compliance |
 
+## Platform Support
+
+- **`no_std` + `alloc`**: the crate is `no_std` compatible but **requires a target
+  with an `alloc` allocator** (ARM Cortex-M, ESP32/Xtensa, RISC-V with a heap).
+  The core heap-allocates via `Box` on initialization; allocator-less targets
+  (e.g. bare `riscv32i` without a heap) are not supported. This is a platform
+  requirement, not a standards-compliance gap.
+- The `alloc` feature is optional and only gates the test/simulation helpers
+  (`accuracy_test`, `generate_signal`); the core pipeline builds with
+  `--no-default-features` on any allocator-bearing target.
+
 ## Gaps Toward Certification
 
 1. **Harmonics**: switch from a 1-cycle window to 10-cycle windows + subgroup method per IEC 61000-4-7 Class II (§5.8).

@@ -45,6 +45,13 @@ Pre-compliance status — not certified. See [docs/COMPLIANCE_STATUS.md](./docs/
 
 ## Resource Requirements & Memory Footprint
 
+> **`no_std` + `alloc` contract**: `no_std` builds require a target with an
+> `alloc` allocator (e.g. ARM Cortex-M, ESP32/Xtensa, RISC-V with a heap).
+> The core heap-allocates on initialization via `Box` (see table below);
+> targets without any allocator (e.g. bare `riscv32i` without a heap) are not
+> supported. The `alloc` feature only adds optional test/simulation helpers and
+> is not required for the core pipeline.
+
 ### 1. Code Footprint (Flash / `.text` Section)
 
 | Mode | Build Command | Flash Size (`.text`) | Key Characteristics |
@@ -154,7 +161,7 @@ src/
 ### Feature Flags
 
 - `std` *(default)*: Enables standard library support and FFT hardware acceleration.
-- `alloc`: Enables heap allocation primitives (`Box`, `Vec`) for `no_std` environments.
+- `alloc`: Optional — adds the test/simulation helpers (`accuracy_test`, `generate_signal`) to `no_std` builds. The core library itself always requires a target with an `alloc` allocator (see [no_std contract](#no_std--alloc-contract)).
 
 ---
 
