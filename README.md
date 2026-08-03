@@ -2,10 +2,12 @@
 
 [![Rust](https://img.shields.io/badge/rust-2021-brightgreen.svg)](https://www.rust-lang.org/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Compliance](https://img.shields.io/badge/IEC%2061000--4--30%3A2021-Class%20S-orange.svg)]()
-[![Compliance](https://img.shields.io/badge/IEC%2062053--21-Active%20Energy-purple.svg)]()
+[![Pre-compliance](https://img.shields.io/badge/IEC%2061000--4--30%3A2021-Class%20S%20(pre--compliance)-orange.svg)]()
+[![Pre-compliance](https://img.shields.io/badge/IEC%2062053--21-Active%20Energy%20(pre--compliance)-purple.svg)]()
 
-High-performance, embedded-first electrical metrology DSP library written in Rust. Designed to comply with **IEC 61000-4-30:2021 Class S** (Power Quality Measurement Methods) and **IEC 62053-21** (Static Meters for AC Active Energy).
+> **Standards support (pre-compliance):** This library implements measurement algorithms derived from several IEC standards. It is intended for development, evaluation, and pre-compliance testing. It has not been certified or validated as fully compliant with the referenced standards. See [docs/COMPLIANCE_STATUS.md](./docs/COMPLIANCE_STATUS.md) for the per-clause status.
+
+High-performance, embedded-first electrical metrology DSP library written in Rust. Implements measurement algorithms derived from **IEC 61000-4-30:2021 Class S** (Power Quality Measurement Methods) and **IEC 62053-21** (Static Meters for AC Active Energy).
 
 Engineered for microcontrollers (e.g., ESP32-S3 / Xtensa, ARM Cortex-M) with zero hardware dependencies, fully compatible with `no_std` + `alloc`.
 
@@ -16,27 +18,29 @@ Engineered for microcontrollers (e.g., ESP32-S3 / Xtensa, ARM Cortex-M) with zer
 - **Multi-Phase Topology Support**: Configurable 1 to 4 channels (Single-phase, Single-phase with neutral, 3-Phase 3-Wire, 3-Phase 4-Wire).
 - **True RMS Processing**: Fractional cycle correction for ultra-precise Voltage and Current RMS measurements.
 - **High-Inertia Digital PLL**: Grid frequency tracking (45 Hz – 65 Hz) with 10-second sliding frequency averages (IEC 61000-4-30 §5.1).
-- **Synchronous Resampling**: Coherent windowing with Kaiser/Sinc 31-tap interpolation for leakage-free spectral analysis.
+- **Synchronous Resampling**: Coherent windowing via linear-interpolation resampling to an integer number of cycles for leakage-free spectral analysis.
 - **FFT & Harmonics**: 512-point RFFT processing up to the 50th harmonic order + total harmonic distortion (THD-V and THD-I).
 - **Comprehensive Power Metrics**: Active (W), Reactive (VAR), Apparent (VA), and Power Factor (PF) per phase and 3-phase totals.
 - **Bi-Directional 4-Quadrant Energy**: High-resolution `i128` micro-joule (µJ) accumulators for active/reactive energy across Q1–Q4 (IEC 62053-21).
 - **Signed Phase Angles & Direction**: Directional power flow determination (Inductive, Capacitive, In-Phase) with signed phase shift calculations ($\varphi = \theta_I - \theta_V$).
 - **Fortescue Unbalance Ratios**: Symmetrical component analysis (Zero $U_0$ and Negative $U_2$ sequence ratios) for voltage and current.
-- **Flickermeter Implementation**: Implementation of IEC 61000-4-15 Blocks 1–4 via IEC 61000-4-30 §5.7 (SOS Butterworth 35 Hz filter, weighting filter, instantaneous flicker $P_{\text{inst}}$, and $P_{\text{st}}$ / $P_{\text{lt}}$ classifiers).
+- **Flickermeter Implementation**: Implementation of IEC 61000-4-15 Blocks 1–4 via IEC 61000-4-30 §5.3 (SOS Butterworth 35 Hz filter, weighting filter, instantaneous flicker $P_{\text{inst}}$ in realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ classifiers available as library functions — pre-compliance).
 - **Power Quality Event Detection**: Automated tracking of Voltage Dips, Swells, Interruptions, and Rapid Voltage Changes (RVC).
-- **IEC Quality Flags**: Real-time diagnostic flags (`PLL_UNSETTLED`, `SYNC_INCONSISTENT`, `VOLTAGE_OUT_OF_RANGE`).
+- **IEC Quality Flags**: Real-time diagnostic flags (`PLL_UNSETTLED`, `SYNC_INCONSISTENT`, `OUT_OF_RANGE`, `EVENT_MARKED`).
 - **Hardware-Agnostic**: Works with any ADC front-end (ADS131M08, MCP3913, internal ADCs) by accepting normalized physical values.
 
 ---
 
 ## Standards Compliance
 
-| Standard | Description / Implementation |
-|----------|------------------------------|
-| **IEC 61000-4-30:2021 Class S** | Quality flags, synchronous resampling, 10-cycle RMS, 10 s frequency drift, Fortescue unbalance, Dips/Swells/RVC |
-| **IEC 62053-21 (2nd Ed.)** | Static meters for AC active energy (Classes 1 and 2), 4-Quadrant bi-directional energy metering |
-| **IEC 61000-4-15** | Flickermeter Blocks 1–4 ($P_{\text{inst}}$, $P_{\text{st}}$, $P_{\text{lt}}$) — incorporated by reference via IEC 61000-4-30 §5.7 |
-| **IEC 62053-23** | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
+Pre-compliance status — not certified. See [docs/COMPLIANCE_STATUS.md](./docs/COMPLIANCE_STATUS.md) for the per-clause breakdown.
+
+| Standard | Status | Description / Implementation |
+|----------|--------|------------------------------|
+| **IEC 61000-4-30:2021 Class S** | Partial implementation | Frequency (§5.1), 10-cycle RMS (§5.2), flicker Blocks 1–4 (§5.3), Dips/Swells/Interruptions (§5.4/5.5), Fortescue unbalance (§5.7), harmonics (§5.8, 1-cycle window — gap vs. 10-cycle requirement), interharmonics (§5.9, SBM), RVC (§5.11), quality flags |
+| **IEC 62053-21 (2nd Ed.)** | Algorithm implementation / pre-compliance | Static meters for AC active energy; 4-Quadrant bi-directional energy metering targeting Classes 1/2 limits — verified in software simulation only |
+| **IEC 61000-4-15** | Algorithm implementation | Flickermeter Blocks 1–4 ($P_{\text{inst}}$ realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
+| **IEC 62053-23** | Algorithm implementation | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
 ---
 
 ## Resource Requirements & Memory Footprint
@@ -158,6 +162,7 @@ src/
 
 Comprehensive documentation of all functions, structs, and algorithms is available in:
 - [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md)
+- [`docs/COMPLIANCE_STATUS.md`](./docs/COMPLIANCE_STATUS.md) — per-clause standards compliance status
 
 ---
 

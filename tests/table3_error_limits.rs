@@ -3,7 +3,9 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-use metrology_insight::accuracy_test::{run_accuracy_test, run_polyphase_accuracy_test, PhaseTestPoint};
+use metrology_insight::accuracy_test::{
+    run_accuracy_test, run_polyphase_accuracy_test, PhaseTestPoint,
+};
 
 const UN_V: f32 = 230.0;
 const IN_A: f32 = 5.0;
@@ -166,8 +168,16 @@ fn point11_in_pf08_cap() {
 /// Panics if the error is not below the limit.
 #[test]
 fn point12_unbalanced_load() {
-    let loaded = PhaseTestPoint { v_rms: UN_V, i_rms: IN_A, pf: 1.0 };
-    let unloaded = PhaseTestPoint { v_rms: UN_V, i_rms: 0.0, pf: 1.0 };
+    let loaded = PhaseTestPoint {
+        v_rms: UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
+    let unloaded = PhaseTestPoint {
+        v_rms: UN_V,
+        i_rms: 0.0,
+        pf: 1.0,
+    };
     let r = run_polyphase_accuracy_test([loaded, unloaded, unloaded], 50.0, 1000);
     check(r.error_pct, 2.0, "Unbalanced (1 phase loaded), PF=1.0");
 }

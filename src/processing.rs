@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    print_all, process_signal, update_average, update_phase_angles, update_power_metrics, update_total_energy, FftCache,
-    MetrologyInsight,
+    print_all, process_signal, update_average, update_phase_angles, update_power_metrics,
+    update_total_energy, FftCache, MetrologyInsight,
 };
 
 // Default balanced 3-phase angles (degrees) used as fallback when PLL is not yet locked.
@@ -38,7 +38,7 @@ impl MetrologyInsight {
                     cache,
                 );
 
-                // Interharmonic accumulation (§5.5): push voltage sync buffer each cycle
+                // Interharmonic accumulation (§5.9): push voltage sync buffer each cycle
                 let phase = &mut self.socket.phases[i];
                 phase.interharm_acc.push_cycle(cache.sync_buffer.as_ref());
                 if phase.interharm_acc.is_ready() {
@@ -49,7 +49,9 @@ impl MetrologyInsight {
                 }
 
                 for &v in self.socket.phases[i].voltage.real_wave_slice() {
-                    self.socket.phases[i].flicker_meter.process_sample(v, self.config.adc_samples_seconds);
+                    self.socket.phases[i]
+                        .flicker_meter
+                        .process_sample(v, self.config.adc_samples_seconds);
                 }
 
                 let v_freq_pll = self.socket.phases[i].voltage.pll_state.freq_est;
@@ -57,7 +59,8 @@ impl MetrologyInsight {
                 let urms_half = self.socket.phases[i].voltage.urms_half_cycle.urms;
                 let frame_ns = self.socket.phases[i].voltage.frame_start_ns;
                 if urms_half > 0.0 {
-                    let prev_event_active = self.socket.phases[i].event_detector.active_event.is_active;
+                    let prev_event_active =
+                        self.socket.phases[i].event_detector.active_event.is_active;
                     self.socket.phases[i].event_detector.process_half_cycle(
                         i as u8,
                         urms_half,
@@ -65,7 +68,9 @@ impl MetrologyInsight {
                         &self.config.event_config,
                     );
                     // Discard RVC if a dip/swell/interruption started
-                    if !prev_event_active && self.socket.phases[i].event_detector.active_event.is_active {
+                    if !prev_event_active
+                        && self.socket.phases[i].event_detector.active_event.is_active
+                    {
                         self.socket.phases[i].rvc_detector.discard_active();
                     }
                     self.socket.phases[i].rvc_detector.process_half_cycle(
@@ -75,8 +80,11 @@ impl MetrologyInsight {
                         &self.config.rvc_config,
                     );
                 }
-                if self.socket.phases[i].event_detector.active_event.is_active || self.socket.phases[i].rvc_detector.is_active() {
-                    self.socket.phases[i].voltage.quality_flags |= crate::types::Q_FLAG_EVENT_MARKED;
+                if self.socket.phases[i].event_detector.active_event.is_active
+                    || self.socket.phases[i].rvc_detector.is_active()
+                {
+                    self.socket.phases[i].voltage.quality_flags |=
+                        crate::types::Q_FLAG_EVENT_MARKED;
                 }
 
                 process_signal(
@@ -86,35 +94,55 @@ impl MetrologyInsight {
                     &self.config,
                     cache,
                 );
-                if self.socket.phases[i].event_detector.active_event.is_active || self.socket.phases[i].rvc_detector.is_active() {
-                    self.socket.phases[i].current.quality_flags |= crate::types::Q_FLAG_EVENT_MARKED;
+                if self.socket.phases[i].event_detector.active_event.is_active
+                    || self.socket.phases[i].rvc_detector.is_active()
+                {
+                    self.socket.phases[i].current.quality_flags |=
+                        crate::types::Q_FLAG_EVENT_MARKED;
                 }
             } else {
                 let current_slice = self.socket.phases[i].current.real_wave_slice();
                 let sum_sq: f32 = current_slice.iter().map(|&s| s * s).sum();
-                let rms = if !current_slice.is_empty() { (sum_sq / current_slice.len() as f32).sqrt() } else { 0.0 };
-                update_average(rms, &mut self.socket.phases[i].current.rms, self.config.avg_sec);
+                let rms = if !current_slice.is_empty() {
+                    crate::math::sqrt(sum_sq / current_slice.len() as f32)
+                } else {
+                    0.0
+                };
+                update_average(
+                    rms,
+                    &mut self.socket.phases[i].current.rms,
+                    self.config.avg_sec,
+                );
                 self.socket.phases[i].current.peak = 0.0;
                 self.socket.phases[i].current.thd = 0.0;
                 self.socket.phases[i].current.harmonics = [0.0; crate::types::NUMBER_HARMONICS];
-                self.socket.phases[i].current.interharmonics = [0.0; crate::types::NUMBER_INTERHARMONICS];
+                self.socket.phases[i].current.interharmonics =
+                    [0.0; crate::types::NUMBER_INTERHARMONICS];
                 self.socket.phases[i].voltage.rms = 0.0;
                 self.socket.phases[i].voltage.peak = 0.0;
                 self.socket.phases[i].voltage.thd = 0.0;
                 self.socket.phases[i].voltage.harmonics = [0.0; crate::types::NUMBER_HARMONICS];
-                self.socket.phases[i].voltage.interharmonics = [0.0; crate::types::NUMBER_INTERHARMONICS];
+                self.socket.phases[i].voltage.interharmonics =
+                    [0.0; crate::types::NUMBER_INTERHARMONICS];
             }
         }
 
-        update_phase_angles(&mut self.socket, self.config.adc_samples_seconds, active_phases);
+        update_phase_angles(
+            &mut self.socket,
+            self.config.adc_samples_seconds,
+            active_phases,
+        );
         update_power_metrics(&mut self.socket, active_phases);
 
         let noise_threshold = self.config.standard_values.ist_a * 0.4;
-        let any_above_noise = (0..active_phases).any(|i| {
-            self.socket.phases[i].current.rms > noise_threshold
-        });
+        let any_above_noise =
+            (0..active_phases).any(|i| self.socket.phases[i].current.rms > noise_threshold);
         if any_above_noise {
-            update_total_energy(&mut self.socket, self.config.adc_samples_seconds as f64, active_phases);
+            update_total_energy(
+                &mut self.socket,
+                self.config.adc_samples_seconds as f64,
+                active_phases,
+            );
         }
         if active_phases >= 3 {
             let p0_locked = self.socket.phases[0].voltage.pll_state.locked;

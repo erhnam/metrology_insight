@@ -29,12 +29,12 @@ impl Operation {
     /// # Returns
     ///
     /// The matching `Operation`, or `Operation::Value` for unknown strings.
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse_str(s: &str) -> Self {
         match s {
             "absolute" => Operation::Abs,
             "gradient" => Operation::Gradient,
-            "absGrad"  => Operation::AbsGradient,
-            _          => Operation::Value,
+            "absGrad" => Operation::AbsGradient,
+            _ => Operation::Value,
         }
     }
 }
@@ -60,14 +60,14 @@ impl Group {
     /// # Returns
     ///
     /// The matching `Group`, or `None` if the string is unknown.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "voltage"  => Some(Group::Voltage),
-            "current"  => Some(Group::Current),
-            "power"    => Some(Group::Power),
+            "voltage" => Some(Group::Voltage),
+            "current" => Some(Group::Current),
+            "power" => Some(Group::Power),
             "a_energy" => Some(Group::ActiveEnergy),
             "r_energy" => Some(Group::ReactiveEnergy),
-            _          => None,
+            _ => None,
         }
     }
 }
@@ -99,22 +99,22 @@ impl Element {
     /// # Returns
     ///
     /// The matching `Element`, or `None` if the string is unknown.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "TRMS"          => Some(Element::Rms),
+            "TRMS" => Some(Element::Rms),
             "UrmsHalfCycle" => Some(Element::UrmsHalfCycle),
-            "Frequency"     => Some(Element::Frequency),
-            "THD"           => Some(Element::Thd),
-            "instant"       => Some(Element::Instant),
-            "Phi"           => Some(Element::Phi),
-            "Active"        => Some(Element::Active),
-            "Reactive"      => Some(Element::Reactive),
-            "Apparent"      => Some(Element::Apparent),
-            "Imported"      => Some(Element::Imported),
-            "Exported"      => Some(Element::Exported),
-            "Inductive"     => Some(Element::Inductive),
-            "Capacitive"    => Some(Element::Capacitive),
-            _               => None,
+            "Frequency" => Some(Element::Frequency),
+            "THD" => Some(Element::Thd),
+            "instant" => Some(Element::Instant),
+            "Phi" => Some(Element::Phi),
+            "Active" => Some(Element::Active),
+            "Reactive" => Some(Element::Reactive),
+            "Apparent" => Some(Element::Apparent),
+            "Imported" => Some(Element::Imported),
+            "Exported" => Some(Element::Exported),
+            "Inductive" => Some(Element::Inductive),
+            "Capacitive" => Some(Element::Capacitive),
+            _ => None,
         }
     }
 }
@@ -144,11 +144,11 @@ impl Condition {
     /// `true` if the comparison holds.
     fn check(self, value: f32, threshold: f32) -> bool {
         match self {
-            Condition::Gt    => value > threshold,
-            Condition::GtEq  => value >= threshold,
-            Condition::Lt    => value < threshold,
-            Condition::LtEq  => value <= threshold,
-            Condition::Eq    => (value - threshold).abs() < f32::EPSILON,
+            Condition::Gt => value > threshold,
+            Condition::GtEq => value >= threshold,
+            Condition::Lt => value < threshold,
+            Condition::LtEq => value <= threshold,
+            Condition::Eq => (value - threshold).abs() < f32::EPSILON,
             Condition::NotEq => (value - threshold).abs() >= f32::EPSILON,
         }
     }
@@ -162,15 +162,15 @@ impl Condition {
     /// # Returns
     ///
     /// The matching `Condition`, or `None` if the string is unknown.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "gt"        => Some(Condition::Gt),
-            "gt_eq"     => Some(Condition::GtEq),
-            "lt"        => Some(Condition::Lt),
-            "lt_eq"     => Some(Condition::LtEq),
-            "equal"     => Some(Condition::Eq),
+            "gt" => Some(Condition::Gt),
+            "gt_eq" => Some(Condition::GtEq),
+            "lt" => Some(Condition::Lt),
+            "lt_eq" => Some(Condition::LtEq),
+            "equal" => Some(Condition::Eq),
             "not_equal" => Some(Condition::NotEq),
-            _           => None,
+            _ => None,
         }
     }
 }
@@ -188,20 +188,20 @@ pub enum Status {
 
 #[derive(Debug, Clone)]
 pub struct Detector {
-    pub condition:     Condition,
-    pub status:        Status,
+    pub condition: Condition,
+    pub status: Status,
 
-    pub th:            f32,
-    pub hyst:          f32,
+    pub th: f32,
+    pub hyst: f32,
 
-    pub threshold_on:  f32,
+    pub threshold_on: f32,
     pub threshold_off: f32,
 
-    pub debounce_on:   u16,
-    pub debounce_off:  u16,
-    debounce:          u16,
+    pub debounce_on: u16,
+    pub debounce_off: u16,
+    debounce: u16,
 
-    prev_raw:          f32,
+    prev_raw: f32,
 }
 
 impl Detector {
@@ -224,8 +224,8 @@ impl Detector {
         // For Gt: turns on when exceeding `th`, turns off when dropping below `th - h`
         // For Lt: turns on when dropping below `th`, turns off when rising above `th + h`
         let (threshold_on, threshold_off) = match condition {
-            Condition::Gt | Condition::GtEq  => (th,     th - h),
-            Condition::Lt | Condition::LtEq  => (th,     th + h),
+            Condition::Gt | Condition::GtEq => (th, th - h),
+            Condition::Lt | Condition::LtEq => (th, th + h),
             Condition::Eq | Condition::NotEq => (th + h, th - h),
         };
 
@@ -236,8 +236,8 @@ impl Detector {
             hyst: hyst_abs,
             threshold_on,
             threshold_off,
-            debounce_on:   debounce,
-            debounce_off:  debounce,
+            debounce_on: debounce,
+            debounce_off: debounce,
             debounce,
             prev_raw: 0.0,
         }
@@ -275,9 +275,9 @@ impl Detector {
         update_status: bool,
     ) -> (bool, Status) {
         let value = match op {
-            Operation::Value       => raw_value,
-            Operation::Abs         => raw_value.abs(),
-            Operation::Gradient    => raw_value - self.prev_raw,
+            Operation::Value => raw_value,
+            Operation::Abs => raw_value.abs(),
+            Operation::Gradient => raw_value - self.prev_raw,
             Operation::AbsGradient => (raw_value - self.prev_raw).abs(),
         };
         self.prev_raw = raw_value;
@@ -292,8 +292,8 @@ impl Detector {
                 let is_normal = match self.condition {
                     Condition::Gt | Condition::GtEq => value <= self.threshold_off,
                     Condition::Lt | Condition::LtEq => value >= self.threshold_off,
-                    Condition::Eq                   => (value - self.th).abs() > self.hyst,
-                    Condition::NotEq                => (value - self.th).abs() <= self.hyst,
+                    Condition::Eq => (value - self.th).abs() > self.hyst,
+                    Condition::NotEq => (value - self.th).abs() <= self.hyst,
                 };
 
                 if self.debounce > 0 {
@@ -305,9 +305,9 @@ impl Detector {
                 }
 
                 if is_normal && self.debounce == 0 {
-                    self.status   = Status::Off;
+                    self.status = Status::Off;
                     self.debounce = self.debounce_on;
-                    transition    = true;
+                    transition = true;
                 }
             }
             Status::Off => {
@@ -326,7 +326,7 @@ impl Detector {
                         self.status = Status::On;
                     }
                     self.debounce = self.debounce_off;
-                    transition    = true;
+                    transition = true;
                 }
             }
         }
@@ -336,7 +336,7 @@ impl Detector {
 
     /// Resets the detector to the `Off` state and clears the stored raw value.
     pub fn reset(&mut self) {
-        self.status   = Status::Off;
+        self.status = Status::Off;
         self.debounce = self.debounce_on;
         self.prev_raw = 0.0;
     }
@@ -346,8 +346,8 @@ impl Detector {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ValueKey {
-    pub phase:   usize,
-    pub group:   Group,
+    pub phase: usize,
+    pub group: Group,
     pub element: Element,
 }
 
@@ -366,25 +366,33 @@ pub fn extract_value(socket: &MetrologyInsightSocket, key: ValueKey) -> Option<f
     let phase: &PhaseData = socket.phases.get(key.phase)?;
 
     match (key.group, key.element) {
-        (Group::Voltage, Element::Rms)           => Some(phase.voltage.rms),
+        (Group::Voltage, Element::Rms) => Some(phase.voltage.rms),
         (Group::Voltage, Element::UrmsHalfCycle) => Some(phase.voltage.urms_half_cycle.urms),
-        (Group::Voltage, Element::Frequency)     => Some(phase.voltage.pll_state.freq_est),
-        (Group::Voltage, Element::Thd)           => Some(phase.voltage.thd),
+        (Group::Voltage, Element::Frequency) => Some(phase.voltage.pll_state.freq_est),
+        (Group::Voltage, Element::Thd) => Some(phase.voltage.thd),
 
-        (Group::Current, Element::Rms)           => Some(phase.current.rms),
+        (Group::Current, Element::Rms) => Some(phase.current.rms),
         (Group::Current, Element::UrmsHalfCycle) => Some(phase.current.urms_half_cycle.urms),
-        (Group::Current, Element::Thd)           => Some(phase.current.thd),
-        (Group::Current, Element::Phi)           => Some(phase.phase_angles.c2v_angle),
+        (Group::Current, Element::Thd) => Some(phase.current.thd),
+        (Group::Current, Element::Phi) => Some(phase.phase_angles.c2v_angle),
 
-        (Group::Power, Element::Active)          => Some(phase.power_metrics.real_power),
-        (Group::Power, Element::Reactive)        => Some(phase.power_metrics.reactive_power),
-        (Group::Power, Element::Apparent)        => Some(phase.power_metrics.apparent_power),
+        (Group::Power, Element::Active) => Some(phase.power_metrics.real_power),
+        (Group::Power, Element::Reactive) => Some(phase.power_metrics.reactive_power),
+        (Group::Power, Element::Apparent) => Some(phase.power_metrics.apparent_power),
 
-        (Group::ActiveEnergy, Element::Imported)  => Some(socket.energy_metrics.active.imported() as f32),
-        (Group::ActiveEnergy, Element::Exported)  => Some(socket.energy_metrics.active.exported() as f32),
+        (Group::ActiveEnergy, Element::Imported) => {
+            Some(socket.energy_metrics.active.imported() as f32)
+        }
+        (Group::ActiveEnergy, Element::Exported) => {
+            Some(socket.energy_metrics.active.exported() as f32)
+        }
 
-        (Group::ReactiveEnergy, Element::Inductive)  => Some(socket.energy_metrics.reactive.inductive() as f32),
-        (Group::ReactiveEnergy, Element::Capacitive) => Some(socket.energy_metrics.reactive.capacitive() as f32),
+        (Group::ReactiveEnergy, Element::Inductive) => {
+            Some(socket.energy_metrics.reactive.inductive() as f32)
+        }
+        (Group::ReactiveEnergy, Element::Capacitive) => {
+            Some(socket.energy_metrics.reactive.capacitive() as f32)
+        }
 
         _ => None,
     }
@@ -405,7 +413,9 @@ impl DetectorManager {
     ///
     /// A manager with all slots empty.
     pub fn new() -> Self {
-        Self { slots: core::array::from_fn(|_| None) }
+        Self {
+            slots: core::array::from_fn(|_| None),
+        }
     }
 
     /// Allocates a new detector in the first free slot.
@@ -424,12 +434,12 @@ impl DetectorManager {
     /// The slot index of the new detector, or `None` if all slots are occupied.
     pub fn create(
         &mut self,
-        key:       ValueKey,
-        op:        Operation,
+        key: ValueKey,
+        op: Operation,
         condition: Condition,
-        th:        f32,
-        hyst_abs:  f32,
-        debounce:  u16,
+        th: f32,
+        hyst_abs: f32,
+        debounce: u16,
     ) -> Option<usize> {
         let slot = self.slots.iter().position(|s| s.is_none())?;
         self.slots[slot] = Some((key, op, Detector::new(condition, th, hyst_abs, debounce)));

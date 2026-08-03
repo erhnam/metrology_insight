@@ -43,11 +43,17 @@ fn active_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_se
         let delta_uj = (p_real.abs() * elapsed_time * W_SEC_TO_UJ) as i128;
 
         if p_real > 0.0 {
-            if p_react >= 0.0 { socket.energy_metrics.active.q1_uj += delta_uj; }
-            else { socket.energy_metrics.active.q4_uj += delta_uj; }
+            if p_react >= 0.0 {
+                socket.energy_metrics.active.q1_uj += delta_uj;
+            } else {
+                socket.energy_metrics.active.q4_uj += delta_uj;
+            }
         } else if p_real < 0.0 {
-            if p_react >= 0.0 { socket.energy_metrics.active.q2_uj += delta_uj; }
-            else { socket.energy_metrics.active.q3_uj += delta_uj; }
+            if p_react >= 0.0 {
+                socket.energy_metrics.active.q2_uj += delta_uj;
+            } else {
+                socket.energy_metrics.active.q3_uj += delta_uj;
+            }
         }
 
         let factor = JOULES_TO_KWH / W_SEC_TO_UJ;
@@ -72,11 +78,17 @@ fn reactive_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_
         let delta_uj = (p_react.abs() * elapsed_time * W_SEC_TO_UJ) as i128;
 
         if p_real >= 0.0 {
-            if p_react > 0.0 { socket.energy_metrics.reactive.q1_uj += delta_uj; }
-            else if p_react < 0.0 { socket.energy_metrics.reactive.q4_uj += delta_uj; }
+            if p_react > 0.0 {
+                socket.energy_metrics.reactive.q1_uj += delta_uj;
+            } else if p_react < 0.0 {
+                socket.energy_metrics.reactive.q4_uj += delta_uj;
+            }
         } else {
-            if p_react > 0.0 { socket.energy_metrics.reactive.q2_uj += delta_uj; }
-            else if p_react < 0.0 { socket.energy_metrics.reactive.q3_uj += delta_uj; }
+            if p_react > 0.0 {
+                socket.energy_metrics.reactive.q2_uj += delta_uj;
+            } else if p_react < 0.0 {
+                socket.energy_metrics.reactive.q3_uj += delta_uj;
+            }
         }
 
         let factor = JOULES_TO_KWH / W_SEC_TO_UJ;
@@ -106,7 +118,11 @@ pub fn update_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_sample
 /// * `socket` — Mutable metrology socket whose total energy metrics are updated.
 /// * `adc_samples_second` — ADC sampling rate in samples per second.
 /// * `_active_phases` — Number of active phases (currently unused).
-pub fn update_total_energy(socket: &mut MetrologyInsightSocket, adc_samples_second: f64, _active_phases: usize) {
+pub fn update_total_energy(
+    socket: &mut MetrologyInsightSocket,
+    adc_samples_second: f64,
+    _active_phases: usize,
+) {
     update_energy_by_quadrant(socket, adc_samples_second);
 
     let active = &mut socket.energy_metrics.active;

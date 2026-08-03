@@ -3,7 +3,7 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const PRE_TRIGGER_CYCLES: usize = 10;
 pub const POST_TRIGGER_CYCLES: usize = 50;
@@ -165,10 +165,14 @@ impl Default for OscillographyManager {
     fn default() -> Self {
         Self {
             channels: [
-                ChannelBuffer::default(), ChannelBuffer::default(),
-                ChannelBuffer::default(), ChannelBuffer::default(),
-                ChannelBuffer::default(), ChannelBuffer::default(),
-                ChannelBuffer::default(), ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
+                ChannelBuffer::default(),
             ],
             state: OscillographyState::Idle,
             trigger_source: None,
@@ -239,16 +243,26 @@ impl OscillographyManager {
         match self.state {
             OscillographyState::Armed => {
                 // Buffer pre-trigger samples continuously
-                for i in 0..(self.active_channels as usize).min(MAX_CHANNELS) {
-                    self.channels[i].feed_pre(samples[i]);
+                for (i, ch) in self
+                    .channels
+                    .iter_mut()
+                    .enumerate()
+                    .take(self.active_channels as usize)
+                {
+                    ch.feed_pre(samples[i]);
                 }
                 false
             }
             OscillographyState::Capturing => {
                 // Fill post-trigger buffer
                 let mut completed = true;
-                for i in 0..(self.active_channels as usize).min(MAX_CHANNELS) {
-                    let ch_done = self.channels[i].feed_post(samples[i]);
+                for (i, ch) in self
+                    .channels
+                    .iter_mut()
+                    .enumerate()
+                    .take(self.active_channels as usize)
+                {
+                    let ch_done = ch.feed_post(samples[i]);
                     completed = completed && ch_done;
                 }
 

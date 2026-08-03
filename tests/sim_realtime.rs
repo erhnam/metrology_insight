@@ -305,50 +305,162 @@ fn simulated_realtime_three_phase_balanced() {
     // -----------------------------------------------------------------------
     // Per-Phase Metrics Evaluation (Phases A, B, C)
     // -----------------------------------------------------------------------
-    for i in 0..3 {
-        let ph = &sock.phases[i];
+    for (i, ph) in sock.phases.iter().enumerate().take(3) {
         let p_label = phase_labels[i];
 
         println!("\n--- Phase {} ({}) ---", i, p_label);
 
         // Voltage
-        eval.check(&format!("ph{i}.v_rms"), exp.v_total, ph.voltage.rms, exp.v_total * 0.01, "V");
-        eval.check(&format!("ph{i}.v_rms_10c"), exp.v_total, ph.voltage.rms_10cycle, exp.v_total * 0.01, "V");
-        eval.check(&format!("ph{i}.v_peak"), exp.v_peak, ph.voltage.peak, 15.0, "V");
-        eval.check(&format!("ph{i}.freq"), exp.freq, ph.voltage.pll_state.freq_est, 0.1, "Hz");
-        eval.check(&format!("ph{i}.freq_10s"), exp.freq, ph.voltage.pll_state.freq_10s, 0.1, "Hz");
-        eval.check(&format!("ph{i}.flicker"), 0.0, ph.flicker_meter.p_inst, 0.2, "P_inst");
-        eval.check(&format!("ph{i}.pst"), 0.0, ph.flicker_meter.calculate_pst(), 10.0, "Pst");
-        eval.check(&format!("ph{i}.thd_v"), exp.thd_v, ph.voltage.thd, 0.15, "%");
+        eval.check(
+            &format!("ph{i}.v_rms"),
+            exp.v_total,
+            ph.voltage.rms,
+            exp.v_total * 0.01,
+            "V",
+        );
+        eval.check(
+            &format!("ph{i}.v_rms_10c"),
+            exp.v_total,
+            ph.voltage.rms_10cycle,
+            exp.v_total * 0.01,
+            "V",
+        );
+        eval.check(
+            &format!("ph{i}.v_peak"),
+            exp.v_peak,
+            ph.voltage.peak,
+            15.0,
+            "V",
+        );
+        eval.check(
+            &format!("ph{i}.freq"),
+            exp.freq,
+            ph.voltage.pll_state.freq_est,
+            0.1,
+            "Hz",
+        );
+        eval.check(
+            &format!("ph{i}.freq_10s"),
+            exp.freq,
+            ph.voltage.pll_state.freq_10s,
+            0.1,
+            "Hz",
+        );
+        eval.check(
+            &format!("ph{i}.flicker"),
+            0.0,
+            ph.flicker_meter.p_inst,
+            0.2,
+            "P_inst",
+        );
+        eval.check(
+            &format!("ph{i}.pst"),
+            0.0,
+            ph.flicker_meter.calculate_pst(),
+            10.0,
+            "Pst",
+        );
+        eval.check(
+            &format!("ph{i}.thd_v"),
+            exp.thd_v,
+            ph.voltage.thd,
+            0.15,
+            "%",
+        );
 
         // Current
-        eval.check(&format!("ph{i}.i_rms"), exp.i_total, ph.current.rms, exp.i_total * 0.01, "A");
-        eval.check(&format!("ph{i}.i_peak"), exp.i_peak, ph.current.peak, 15.0, "A");
+        eval.check(
+            &format!("ph{i}.i_rms"),
+            exp.i_total,
+            ph.current.rms,
+            exp.i_total * 0.01,
+            "A",
+        );
+        eval.check(
+            &format!("ph{i}.i_peak"),
+            exp.i_peak,
+            ph.current.peak,
+            15.0,
+            "A",
+        );
         eval.check(&format!("ph{i}.thd_i"), exp.thd_i, ph.current.thd, 0.6, "%");
 
         // Power
-        eval.check(&format!("ph{i}.p_w"), exp.p_real, ph.power_metrics.real_power, exp.p_real * 0.015, "W");
-        let q_expected = ph.power_metrics.apparent_power * (ph.phase_angles.c2v_angle.to_radians()).sin();
-        eval.check(&format!("ph{i}.q_var"), q_expected, ph.power_metrics.reactive_power, ph.power_metrics.apparent_power * 0.05, "VAR");
-        eval.check(&format!("ph{i}.s_va"), exp.s_app, ph.power_metrics.apparent_power, exp.s_app * 0.015, "VA");
-        eval.check(&format!("ph{i}.pf"), exp.pf, ph.power_metrics.power_factor, 0.015, "");
+        eval.check(
+            &format!("ph{i}.p_w"),
+            exp.p_real,
+            ph.power_metrics.real_power,
+            exp.p_real * 0.015,
+            "W",
+        );
+        let q_expected =
+            ph.power_metrics.apparent_power * (ph.phase_angles.c2v_angle.to_radians()).sin();
+        eval.check(
+            &format!("ph{i}.q_var"),
+            q_expected,
+            ph.power_metrics.reactive_power,
+            ph.power_metrics.apparent_power * 0.05,
+            "VAR",
+        );
+        eval.check(
+            &format!("ph{i}.s_va"),
+            exp.s_app,
+            ph.power_metrics.apparent_power,
+            exp.s_app * 0.015,
+            "VA",
+        );
+        eval.check(
+            &format!("ph{i}.pf"),
+            exp.pf,
+            ph.power_metrics.power_factor,
+            0.015,
+            "",
+        );
 
         // Phase Angles
-        eval.check(&format!("ph{i}.ang_c2v"), exp.ang_c2v, ph.phase_angles.c2v_angle, 6.0, "deg");
-        eval.check(&format!("ph{i}.ang_v"), exp.ang_v[i], ph.phase_angles.v_angle, 2.0, "deg");
-        eval.check(&format!("ph{i}.ang_i"), exp.ang_i[i], ph.phase_angles.c_angle, 6.0, "deg");
+        eval.check(
+            &format!("ph{i}.ang_c2v"),
+            exp.ang_c2v,
+            ph.phase_angles.c2v_angle,
+            6.0,
+            "deg",
+        );
+        eval.check(
+            &format!("ph{i}.ang_v"),
+            exp.ang_v[i],
+            ph.phase_angles.v_angle,
+            2.0,
+            "deg",
+        );
+        eval.check(
+            &format!("ph{i}.ang_i"),
+            exp.ang_i[i],
+            ph.phase_angles.c_angle,
+            6.0,
+            "deg",
+        );
 
         // Voltage Harmonics [H1..H50]
         for h in 0..50 {
             let name = format!("ph{i}.v_harm[{}]", h + 1);
-            let tol = if h == 0 { 0.5 } else if exp.v_harmonics[h] > 0.0 { 0.25 } else { 0.20 };
+            let tol = if h == 0 {
+                0.5
+            } else if exp.v_harmonics[h] > 0.0 {
+                0.25
+            } else {
+                0.20
+            };
             eval.check(&name, exp.v_harmonics[h], ph.voltage.harmonics[h], tol, "%");
         }
 
         // Current Harmonics [H1..H50]
         for h in 0..50 {
             let name = format!("ph{i}.i_harm[{}]", h + 1);
-            let tol = if h == 0 { 0.5 } else if exp.i_harmonics[h] > 0.0 { 0.5 } else { 0.3 };
+            let tol = if h == 0 || exp.i_harmonics[h] > 0.0 {
+                0.5
+            } else {
+                0.3
+            };
             eval.check(&name, exp.i_harmonics[h], ph.current.harmonics[h], tol, "%");
         }
     }

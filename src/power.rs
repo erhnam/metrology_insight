@@ -6,7 +6,6 @@
 use crate::{MetrologyInsightSignal, MetrologyInsightSocket, PowerMetrics};
 
 #[allow(dead_code)]
-
 /// Compute real power from RMS voltage, RMS current, and power factor.
 ///
 /// # Arguments
@@ -18,7 +17,11 @@ use crate::{MetrologyInsightSignal, MetrologyInsightSocket, PowerMetrics};
 /// # Returns
 ///
 /// The product `voltage × current × power factor` in watts.
-fn real_power_from_rms_and_power_factor(voltage_rms: f32, current_rms: f32, power_factor: f32) -> f32 {
+fn real_power_from_rms_and_power_factor(
+    voltage_rms: f32,
+    current_rms: f32,
+    power_factor: f32,
+) -> f32 {
     voltage_rms * current_rms * power_factor
 }
 
@@ -37,7 +40,12 @@ fn real_power_from_signals(signal_v: &[f32], signal_i: &[f32]) -> f32 {
     if signal_v.is_empty() || signal_v.len() != signal_i.len() {
         return 0.0;
     }
-    signal_v.iter().zip(signal_i.iter()).map(|(&v, &i)| v * i).sum::<f32>() / signal_v.len() as f32
+    signal_v
+        .iter()
+        .zip(signal_i.iter())
+        .map(|(&v, &i)| v * i)
+        .sum::<f32>()
+        / signal_v.len() as f32
 }
 
 /// Compute reactive power from apparent power and the current-to-voltage angle.
@@ -51,7 +59,7 @@ fn real_power_from_signals(signal_v: &[f32], signal_i: &[f32]) -> f32 {
 ///
 /// Apparent power multiplied by the sine of the phase angle, in VAR.
 fn reactive_power_from_angle(apparent_power: f32, c2v_angle_deg: f32) -> f32 {
-    apparent_power * (c2v_angle_deg.to_radians()).sin()
+    apparent_power * crate::math::sin(c2v_angle_deg.to_radians())
 }
 
 /// Compute apparent power as the product of RMS voltage and RMS current.
@@ -104,7 +112,10 @@ fn calculate_all_power_metrics(
     current_signal: &mut MetrologyInsightSignal,
     c2v_angle: f32,
 ) -> PowerMetrics {
-    let real_power = real_power_from_signals(voltage_signal.real_wave_slice(), current_signal.real_wave_slice());
+    let real_power = real_power_from_signals(
+        voltage_signal.real_wave_slice(),
+        current_signal.real_wave_slice(),
+    );
 
     let apparent_power = apparent_power_from_rms(voltage_signal.rms, current_signal.rms);
 
@@ -129,7 +140,11 @@ fn calculate_all_power_metrics(
 pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: usize) {
     for i in 0..active_phases {
         let c2v_angle = socket.phases[i].phase_angles.c2v_angle;
-        socket.phases[i].power_metrics = calculate_all_power_metrics(&mut socket.phases[i].voltage, &mut socket.phases[i].current, c2v_angle);
+        socket.phases[i].power_metrics = calculate_all_power_metrics(
+            &mut socket.phases[i].voltage,
+            &mut socket.phases[i].current,
+            c2v_angle,
+        );
     }
 
     let mut total_real: f32 = 0.0;
@@ -139,7 +154,11 @@ pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: 
         total_react += socket.phases[i].power_metrics.reactive_power;
     }
     let total_apparent = libm::sqrtf(total_real * total_real + total_react * total_react);
-    let total_pf = if total_apparent > 0.0 { total_real / total_apparent } else { 0.0 };
+    let total_pf = if total_apparent > 0.0 {
+        total_real / total_apparent
+    } else {
+        0.0
+    };
 
     socket.power_metrics_total = PowerMetrics {
         real_power: total_real,

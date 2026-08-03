@@ -53,11 +53,11 @@ impl UrmsHalfCycle {
         }
         let total_sum_sq = self.sum_sq_prev + self.sum_sq_curr;
         let total_count = self.count_prev + self.count_curr;
-        
+
         if total_count > 0.0 {
-            self.urms = (total_sum_sq / total_count).sqrt();
+            self.urms = crate::math::sqrt(total_sum_sq / total_count);
         }
-        
+
         self.sum_sq_prev = self.sum_sq_curr;
         self.count_prev = self.count_curr;
         self.sum_sq_curr = 0.0;

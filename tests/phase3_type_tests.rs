@@ -3,7 +3,7 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-use metrology_insight::accuracy_test::{run_accuracy_test, generate_cycle};
+use metrology_insight::accuracy_test::{generate_cycle, run_accuracy_test};
 
 const UN_V: f32 = 230.0;
 const IN_A: f32 = 5.0;
@@ -49,7 +49,9 @@ fn uncertainty_type_a() {
     assert!(
         u_expanded < 0.33,
         "Expanded uncertainty too high: {:.4}% (limit 0.33%) — u_A={:.6}%, u_B={:.4}%",
-        u_expanded, ua, ub
+        u_expanded,
+        ua,
+        ub
     );
 }
 
@@ -125,7 +127,8 @@ fn noise_below_threshold_no_energy() {
     assert!(
         r.energy_meas_wh.abs() < 1e-9,
         "Noise threshold FAIL: accumulated {:.10} Wh at I={:.4} A (limit: 0 Wh)",
-        r.energy_meas_wh, i_noise
+        r.energy_meas_wh,
+        i_noise
     );
 }
 
@@ -179,7 +182,8 @@ fn below_starting_current_reasonable() {
     assert!(
         r.error_pct.abs() < 10.0,
         "Below starting current: error too large ({:.4}%) at I={:.4} A (0.9×Ist)",
-        r.error_pct, i_below
+        r.error_pct,
+        i_below
     );
 }
 
@@ -227,10 +231,12 @@ fn repeatability_10_measurements() {
 /// The percent error between measured and reference energy over the whole run.
 fn run_step_test(low_a: f32, high_a: f32, cycles_low: u32, cycles_high: u32) -> f64 {
     let fs = 8000.0;
-    let mut cfg = metrology_insight::MetrologyInsightConfig::default();
-    cfg.adc_samples_seconds = fs;
-    cfg.adc_samples_per_cycle = (fs / FN_HZ) as f64;
-    cfg.nominal_freq = FN_HZ;
+    let cfg = metrology_insight::MetrologyInsightConfig {
+        adc_samples_seconds: fs,
+        adc_samples_per_cycle: (fs / FN_HZ) as f64,
+        nominal_freq: FN_HZ,
+        ..Default::default()
+    };
     let mut insight = metrology_insight::MetrologyInsight::new(cfg);
 
     let dt_s = 1.0 / FN_HZ;
@@ -287,11 +293,7 @@ fn step_imin_to_imax() {
     let i_low = imin(); // 0.10 A (CT)
     let imax = 2.0 * IN_A; // 10 A
     let err = run_step_test(i_low, imax, 50, 50);
-    assert!(
-        err.abs() < 2.0,
-        "Step Imin→Imax error: {:.4}%",
-        err
-    );
+    assert!(err.abs() < 2.0, "Step Imin→Imax error: {:.4}%", err);
 }
 
 /// Verifies accuracy when the current steps abruptly from Imax to Imin.
@@ -304,9 +306,5 @@ fn step_imax_to_imin() {
     let i_low = imin(); // 0.10 A (CT)
     let imax = 2.0 * IN_A; // 10 A
     let err = run_step_test(imax, i_low, 50, 50);
-    assert!(
-        err.abs() < 2.0,
-        "Step Imax→Imin error: {:.4}%",
-        err
-    );
+    assert!(err.abs() < 2.0, "Step Imax→Imin error: {:.4}%", err);
 }

@@ -19,17 +19,17 @@ const PHASE_LABELS: [&str; 4] = ["A", "B", "C", "N"];
 /// * `active` - Number of active phases to print.
 pub fn print_voltage_signal(data: &MetrologyInsightSocket, active: usize) {
     log::info!("Voltage:");
-    for i in 0..active.min(3) {
+    for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
         log::info!(
             "  Phase {}: Peak: {:.3} V, RMS: {:.3} V, Urms(1/2): {:.3} V",
             PHASE_LABELS[i],
-            data.phases[i].voltage.peak,
-            data.phases[i].voltage.rms,
-            data.phases[i].voltage.urms_half_cycle.urms,
+            phase.voltage.peak,
+            phase.voltage.rms,
+            phase.voltage.urms_half_cycle.urms,
         );
         log::info!(
             "            Flicker (P_inst): {:.3}",
-            data.phases[i].flicker_meter.p_inst,
+            phase.flicker_meter.p_inst,
         );
     }
     if active > 0 {
@@ -48,12 +48,12 @@ pub fn print_voltage_signal(data: &MetrologyInsightSocket, active: usize) {
 /// * `active` - Number of active phases to print.
 pub fn print_current_signal(data: &MetrologyInsightSocket, active: usize) {
     log::info!("Current:");
-    for i in 0..active {
+    for (i, phase) in data.phases.iter().enumerate().take(active) {
         log::info!(
             "  Phase {} RMS: {:.3} A, Irms(1/2): {:.3} A",
             PHASE_LABELS[i],
-            data.phases[i].current.rms,
-            data.phases[i].current.urms_half_cycle.urms,
+            phase.current.rms,
+            phase.current.urms_half_cycle.urms,
         );
     }
 }
@@ -65,12 +65,12 @@ pub fn print_current_signal(data: &MetrologyInsightSocket, active: usize) {
 /// * `data` - Socket with the measured phase data.
 /// * `active` - Number of active phases to print.
 pub fn print_harmonics(data: &MetrologyInsightSocket, active: usize) {
-    for i in 0..active.min(3) {
+    for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
         log::info!("Voltage Harmonics (Phase {}):", PHASE_LABELS[i]);
-        log::info!("  THD: {:.3} %", data.phases[i].voltage.thd);
+        log::info!("  THD: {:.3} %", phase.voltage.thd);
         log::info!(
             "  Harmonics: [{}]",
-            data.phases[i]
+            phase
                 .voltage
                 .harmonics
                 .iter()
@@ -79,10 +79,10 @@ pub fn print_harmonics(data: &MetrologyInsightSocket, active: usize) {
                 .join(", ")
         );
         log::info!("Current Harmonics (Phase {}):", PHASE_LABELS[i]);
-        log::info!("  THD: {:.3} %", data.phases[i].current.thd);
+        log::info!("  THD: {:.3} %", phase.current.thd);
         log::info!(
             "  Harmonics: [{}]",
-            data.phases[i]
+            phase
                 .current
                 .harmonics
                 .iter()
@@ -101,8 +101,14 @@ pub fn print_harmonics(data: &MetrologyInsightSocket, active: usize) {
 pub fn print_power(data: &MetrologyInsightSocket) {
     log::info!("Power (Total):");
     log::info!("  Active: {:.3} W", data.power_metrics_total.real_power);
-    log::info!("  Reactive: {:.3} VAR", data.power_metrics_total.reactive_power);
-    log::info!("  Apparent: {:.3} VA", data.power_metrics_total.apparent_power);
+    log::info!(
+        "  Reactive: {:.3} VAR",
+        data.power_metrics_total.reactive_power
+    );
+    log::info!(
+        "  Apparent: {:.3} VA",
+        data.power_metrics_total.apparent_power
+    );
     log::info!("  Factor: {:.3}\n", data.power_metrics_total.power_factor);
 }
 
@@ -114,12 +120,18 @@ pub fn print_power(data: &MetrologyInsightSocket) {
 /// * `data` - Socket with the measured phase data.
 /// * `active` - Number of active phases to print.
 pub fn print_phase_angle(data: &MetrologyInsightSocket, active: usize) {
-    for i in 0..active.min(3) {
+    for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
         log::info!("Phase Angle (Phase {}):", PHASE_LABELS[i]);
-        log::info!("  Current to Voltage Angle: {:.2}º", data.phases[i].phase_angles.c2v_angle);
-        log::info!("  Voltage Angle: {:.2}º", data.phases[i].phase_angles.v_angle);
-        log::info!("  Current Angle: {:.2}º", data.phases[i].phase_angles.c_angle);
-        log::info!("  Phase direction: {}", data.phases[i].phase_angles.direction_description());
+        log::info!(
+            "  Current to Voltage Angle: {:.2}º",
+            phase.phase_angles.c2v_angle
+        );
+        log::info!("  Voltage Angle: {:.2}º", phase.phase_angles.v_angle);
+        log::info!("  Current Angle: {:.2}º", phase.phase_angles.c_angle);
+        log::info!(
+            "  Phase direction: {}",
+            phase.phase_angles.direction_description()
+        );
     }
 }
 
@@ -132,9 +144,18 @@ pub fn print_phase_angle(data: &MetrologyInsightSocket, active: usize) {
 pub fn print_interphase_angle(data: &MetrologyInsightSocket, active: usize) {
     if active >= 3 {
         log::info!("Inter-phase Angles:");
-        log::info!("  A-B: {:.1}º", data.phases[0].phase_angles.v_angle - data.phases[1].phase_angles.v_angle);
-        log::info!("  B-C: {:.1}º", data.phases[1].phase_angles.v_angle - data.phases[2].phase_angles.v_angle);
-        log::info!("  C-A: {:.1}º", data.phases[2].phase_angles.v_angle - data.phases[0].phase_angles.v_angle);
+        log::info!(
+            "  A-B: {:.1}º",
+            data.phases[0].phase_angles.v_angle - data.phases[1].phase_angles.v_angle
+        );
+        log::info!(
+            "  B-C: {:.1}º",
+            data.phases[1].phase_angles.v_angle - data.phases[2].phase_angles.v_angle
+        );
+        log::info!(
+            "  C-A: {:.1}º",
+            data.phases[2].phase_angles.v_angle - data.phases[0].phase_angles.v_angle
+        );
     }
 }
 
@@ -145,13 +166,31 @@ pub fn print_interphase_angle(data: &MetrologyInsightSocket, active: usize) {
 /// * `data` - Socket with the measured energy data.
 pub fn print_active_energy(data: &MetrologyInsightSocket) {
     log::info!("Active Energy:");
-    log::info!("  Imported Energy: {:.3} kWh", data.energy_metrics.active.imported);
-    log::info!("  Exported Energy: {:.3} kWh", data.energy_metrics.active.exported);
+    log::info!(
+        "  Imported Energy: {:.3} kWh",
+        data.energy_metrics.active.imported
+    );
+    log::info!(
+        "  Exported Energy: {:.3} kWh",
+        data.energy_metrics.active.exported
+    );
     log::info!("  Balance: {:.3} kWh\n", data.energy_metrics.active.balance);
-    log::info!("  Active Energy Q1: {:.3} kWh", data.energy_metrics.active.q1);
-    log::info!("  Active Energy Q2: {:.3} kWh", data.energy_metrics.active.q2);
-    log::info!("  Active Energy Q3: {:.3} kWh", data.energy_metrics.active.q3);
-    log::info!("  Active Energy Q4: {:.3} kWh\n", data.energy_metrics.active.q4);
+    log::info!(
+        "  Active Energy Q1: {:.3} kWh",
+        data.energy_metrics.active.q1
+    );
+    log::info!(
+        "  Active Energy Q2: {:.3} kWh",
+        data.energy_metrics.active.q2
+    );
+    log::info!(
+        "  Active Energy Q3: {:.3} kWh",
+        data.energy_metrics.active.q3
+    );
+    log::info!(
+        "  Active Energy Q4: {:.3} kWh\n",
+        data.energy_metrics.active.q4
+    );
 }
 
 /// Logs the capacitive/inductive reactive energy, balance and quadrant energies.
@@ -165,12 +204,30 @@ pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
         "  Capacitive Energy: {:.3} kWh",
         data.energy_metrics.reactive.capacitive
     );
-    log::info!("  Inductive Energy: {:.3} kWh", &data.energy_metrics.reactive.inductive);
-    log::info!("  Balance: {:.3} kWh\n", data.energy_metrics.reactive.balance);
-    log::info!("  Reactive Energy Q1: {:.3} kWh", data.energy_metrics.reactive.q1);
-    log::info!("  Reactive Energy Q2: {:.3} kWh", data.energy_metrics.reactive.q2);
-    log::info!("  Reactive Energy Q3: {:.3} kWh", data.energy_metrics.reactive.q3);
-    log::info!("  Reactive Energy Q4: {:.3} kWh\n", data.energy_metrics.reactive.q4);
+    log::info!(
+        "  Inductive Energy: {:.3} kWh",
+        &data.energy_metrics.reactive.inductive
+    );
+    log::info!(
+        "  Balance: {:.3} kWh\n",
+        data.energy_metrics.reactive.balance
+    );
+    log::info!(
+        "  Reactive Energy Q1: {:.3} kWh",
+        data.energy_metrics.reactive.q1
+    );
+    log::info!(
+        "  Reactive Energy Q2: {:.3} kWh",
+        data.energy_metrics.reactive.q2
+    );
+    log::info!(
+        "  Reactive Energy Q3: {:.3} kWh",
+        data.energy_metrics.reactive.q3
+    );
+    log::info!(
+        "  Reactive Energy Q4: {:.3} kWh\n",
+        data.energy_metrics.reactive.q4
+    );
 }
 
 /// Logs the voltage and current unbalance ratios and the zero/positive/negative sequence
@@ -183,16 +240,22 @@ pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
 pub fn print_unbalance(data: &MetrologyInsightSocket, active: usize) {
     if active >= 3 {
         log::info!("Unbalance:");
-        log::info!("  Voltage u2: {:.2}%  u0: {:.2}%",
+        log::info!(
+            "  Voltage u2: {:.2}%  u0: {:.2}%",
             data.unbalance_metrics.u2_neg_ratio_pct,
-            data.unbalance_metrics.u0_zero_ratio_pct);
-        log::info!("  Current u2: {:.2}%  u0: {:.2}%",
+            data.unbalance_metrics.u0_zero_ratio_pct
+        );
+        log::info!(
+            "  Current u2: {:.2}%  u0: {:.2}%",
             data.unbalance_metrics.u2_i_ratio_pct,
-            data.unbalance_metrics.u0_i_ratio_pct);
-        log::info!("  I0: {:.4} A  I1: {:.4} A  I2: {:.4} A\n",
+            data.unbalance_metrics.u0_i_ratio_pct
+        );
+        log::info!(
+            "  I0: {:.4} A  I1: {:.4} A  I2: {:.4} A\n",
             data.unbalance_metrics.i0_zero_seq,
             data.unbalance_metrics.i1_pos_seq,
-            data.unbalance_metrics.i2_neg_seq);
+            data.unbalance_metrics.i2_neg_seq
+        );
     }
 }
 
@@ -203,7 +266,9 @@ pub fn print_unbalance(data: &MetrologyInsightSocket, active: usize) {
 /// * `data` - Socket with the measured event data.
 /// * `active` - Number of active phases to print.
 pub fn print_events(data: &MetrologyInsightSocket, active: usize) {
-    if active == 0 { return; }
+    if active == 0 {
+        return;
+    }
     let mut dip = 0u32;
     let mut swell = 0u32;
     let mut interrupt = 0u32;
@@ -220,7 +285,13 @@ pub fn print_events(data: &MetrologyInsightSocket, active: usize) {
         }
     }
     log::info!("Events:");
-    log::info!("  Dips: {}  Swells: {}  Interruptions: {}  RVC: {}\n", dip, swell, interrupt, rvc);
+    log::info!(
+        "  Dips: {}  Swells: {}  Interruptions: {}  RVC: {}\n",
+        dip,
+        swell,
+        interrupt,
+        rvc
+    );
     if max_delta > 0.0 {
         log::info!("  RVC max ΔU: {:.2}%\n", max_delta);
     }

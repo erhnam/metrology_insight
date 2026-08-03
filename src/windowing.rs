@@ -12,9 +12,9 @@
 /// * `window` — Mutable slice to be filled with window coefficients.
 pub fn hann(window: &mut [f32]) {
     let n = window.len();
-    for i in 0..n {
+    for (i, w) in window.iter_mut().enumerate() {
         let x = core::f32::consts::TAU * i as f32 / (n - 1) as f32;
-        window[i] = 0.5 * (1.0 - libm::cosf(x));
+        *w = 0.5 * (1.0 - libm::cosf(x));
     }
 }
 
@@ -36,8 +36,8 @@ pub fn blackman_harris(window: &mut [f32]) {
     let a2 = 0.14128;
     let a3 = 0.01168;
 
-    for i in 0..n {
+    for (i, w) in window.iter_mut().enumerate() {
         let x = core::f32::consts::TAU * i as f32 / (n - 1) as f32;
-        window[i] = a0 - a1 * libm::cosf(x) + a2 * libm::cosf(2.0 * x) - a3 * libm::cosf(3.0 * x);
+        *w = a0 - a1 * libm::cosf(x) + a2 * libm::cosf(2.0 * x) - a3 * libm::cosf(3.0 * x);
     }
 }

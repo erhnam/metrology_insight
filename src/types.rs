@@ -3,11 +3,11 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-use alloc::boxed::Box;
+use crate::flicker::FlickerMeter;
 use crate::harmonics::{FftCache, InterharmonicAccumulator};
 use crate::urms::UrmsHalfCycle;
-use crate::flicker::FlickerMeter;
-use serde::{Serialize, Deserialize};
+use alloc::boxed::Box;
+use serde::{Deserialize, Serialize};
 
 pub const FREQ_NOMINAL_50: f32 = 50.0;
 pub const FREQ_NOMINAL_60: f32 = 60.0;
@@ -194,8 +194,8 @@ impl Default for FlickerConfig {
     /// Returns a `FlickerConfig` with the IEC 61000-4-15 default parameters.
     fn default() -> Self {
         use crate::flicker::{
-            FLICKER_RMS_TC_SECONDS, FLICKER_SMOOTH_TC_SECONDS,
-            FLICKER_SEED_THRESHOLD_SQ, FLICKER_MIN_RMS_GUARD, FLICKER_PST_MIN_SAMPLES,
+            FLICKER_MIN_RMS_GUARD, FLICKER_PST_MIN_SAMPLES, FLICKER_RMS_TC_SECONDS,
+            FLICKER_SEED_THRESHOLD_SQ, FLICKER_SMOOTH_TC_SECONDS,
         };
         Self {
             nominal_voltage: 230.0,
@@ -240,8 +240,10 @@ pub struct SignalConfig {
 impl Default for SignalConfig {
     /// Returns a `SignalConfig` with the default signal processing thresholds.
     fn default() -> Self {
-        use crate::signal::{HALF_CYCLE_MIN_FACTOR, RMS_CONSISTENCY_MIN_GUARD, SYNC_CONSISTENCY_THRESHOLD};
         use crate::pll::PLL_ERROR_ACCUM_THRESHOLD;
+        use crate::signal::{
+            HALF_CYCLE_MIN_FACTOR, RMS_CONSISTENCY_MIN_GUARD, SYNC_CONSISTENCY_THRESHOLD,
+        };
         Self {
             half_cycle_min_factor: HALF_CYCLE_MIN_FACTOR,
             rms_consistency_min_guard: RMS_CONSISTENCY_MIN_GUARD,
@@ -276,8 +278,8 @@ impl Default for StandardElectricalValues {
             un_v: 230.0,
             in_a: 5.0,
             imax_a: 10.0,
-            imin_a: 0.02 * 5.0,     // 0.10 A (CT connection)
-            ist_a: 0.002 * 5.0,      // 0.01 A (CT connection)
+            imin_a: 0.02 * 5.0, // 0.10 A (CT connection)
+            ist_a: 0.002 * 5.0, // 0.01 A (CT connection)
             fn_hz: crate::FREQ_NOMINAL_50,
         }
     }
@@ -348,10 +350,9 @@ impl Default for PhaseData {
     fn default() -> Self {
         Self {
             voltage: MetrologyInsightSignal::default(),
-            current: {
-                let mut s = MetrologyInsightSignal::default();
-                s.signal_type = MetrologyInsightSignalType::Current;
-                s
+            current: MetrologyInsightSignal {
+                signal_type: MetrologyInsightSignalType::Current,
+                ..Default::default()
             },
             phase_angles: PhaseAngleMetrics::default(),
             power_metrics: PowerMetrics::default(),
@@ -765,17 +766,17 @@ pub struct PqAggregationRecord {
     pub timestamp_ms: u64,
     pub aggregation_type: u8, // 0 = 3s, 1 = 10min, 2 = 2h
     // Voltages, currents, frequency
-    pub v_rms: [f32; 3], 
-    pub i_rms: [f32; 3], 
+    pub v_rms: [f32; 3],
+    pub i_rms: [f32; 3],
     pub frequency: f32,
-    pub v_peak: [f32; 3], 
+    pub v_peak: [f32; 3],
     pub i_peak: [f32; 3],
     // Total power and energy
-    pub active_power: f32, 
-    pub reactive_power: f32, 
-    pub apparent_power: f32, 
+    pub active_power: f32,
+    pub reactive_power: f32,
+    pub apparent_power: f32,
     pub power_factor: f32,
-    pub active_energy_imp: f32, 
+    pub active_energy_imp: f32,
     pub active_energy_exp: f32,
     // Flicker P_inst
     pub flicker: [f32; 3],
@@ -802,7 +803,7 @@ pub struct PqAggregationRecord {
     pub interrupt_count: u32,
     pub rvc_count: u32,
     // Main harmonics (THD of each phase)
-    pub v_thd: [f32; 3], 
+    pub v_thd: [f32; 3],
     pub i_thd: [f32; 3],
     // Window validity tracking (§4.5.2) — number of clean/total 10/12-cycle windows
     pub clean_windows: u16,
@@ -813,7 +814,7 @@ pub struct PqAggregationRecord {
     // Padding reserved to reach exactly 256 bytes (flash sector alignment)
     // 253 bytes base + 3 bytes padding = 256 bytes.
     #[serde(skip)]
-    pub padding: [u8; 3], 
+    pub padding: [u8; 3],
 }
 
 impl PqAggregationRecord {

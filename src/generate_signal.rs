@@ -12,29 +12,36 @@ use core::f32::consts::PI;
 // =========================================================================
 
 /// Fundamental peak voltage amplitude (Volts). Equivalent to ~230 Vrms.
-const VPEAK: f32 = 330.2; /// Peak voltage (~230 Vrms + 1.5% grid overvoltage = ~233.5 Vrms -> 330.2 Vpeak)
+/// Peak voltage (~230 Vrms + 1.5% grid overvoltage = ~233.5 Vrms -> 330.2 Vpeak).
+const VPEAK: f32 = 330.2;
 
 /// Fundamental peak current amplitude (Amperes). Equivalent to ~70.7 Arms.
-const IPEAK: f32 = 63.6; /// Peak current (~45.0 Arms nominal load -> 63.6 Apeak)
+/// Peak current (~45.0 Arms nominal load -> 63.6 Apeak).
+const IPEAK: f32 = 63.6;
 
-/// Global current phase shift relative to voltage (in degrees). 
+/// Global current phase shift relative to voltage (in degrees).
 /// 0.0° = Unity Power Factor (PF = 1.0). Negative = Inductive, Positive = Capacitive.
-const IPHASE: f32 = -18.2; /// Slightly inductive load (PF ≈ 0.95 -> acos(0.95) ≈ -18.2°)
+/// Slightly inductive load (PF ≈ 0.95 -> acos(0.95) ≈ -18.2°).
+const IPHASE: f32 = -18.2;
 
 /// Constant DC offset added to ADC sample counts (LSB).
-const SAMPLES_OFFSET: f32 = 12.0; /// Small DC offset from op-amp / ADC front-end bias drift (e.g., +12 LSBs)
+/// Small DC offset from op-amp / ADC front-end bias drift (e.g., +12 LSBs).
+const SAMPLES_OFFSET: f32 = 12.0;
 
 /// High-frequency noise component injection frequency (Hz).
-const NOISE_FREQ: f32 = 6000.0; /// High-frequency switching noise (e.g., 6 kHz inverter switching frequency)
+/// High-frequency switching noise (e.g., 6 kHz inverter switching frequency).
+const NOISE_FREQ: f32 = 6000.0;
 
 /// High-frequency voltage noise amplitude (% of VPEAK).
 const NOISE_VPEAK_PERCENT: f32 = 0.0; // Put to 0.0 temporarily to validate Flicker
 
 /// High-frequency current noise amplitude (% of IPEAK).
-const NOISE_IPEAK_PERCENT: f32 = 0.005; /// 0.5% high-frequency ripple on current
+/// 0.5% high-frequency ripple on current.
+const NOISE_IPEAK_PERCENT: f32 = 0.005;
 
 /// Pseudo-random white noise amplitude (% of signal peak).
-const NOISE_RANDOM_PERCENT: f32 = 0.001; /// Background thermal / quantization noise (0.1% peak-to-peak)
+/// Background thermal / quantization noise (0.1% peak-to-peak).
+const NOISE_RANDOM_PERCENT: f32 = 0.001;
 
 // =========================================================================
 // SAMPLING & SYSTEM TIMING
@@ -44,7 +51,8 @@ const NOISE_RANDOM_PERCENT: f32 = 0.001; /// Background thermal / quantization n
 const FS: f32 = 8000.0;
 
 /// Fundamental power grid frequency (Hz).
-const F: f32 = 49.98; /// Real grid frequency drift (e.g., 49.98 Hz instead of exact 50.00 Hz)
+/// Real grid frequency drift (e.g., 49.98 Hz instead of exact 50.00 Hz).
+const F: f32 = 49.98;
 
 /// Number of samples per buffer cycle (160 samples @ 8000 Hz = 1 cycle @ 50 Hz).
 const N_SAMPLES: usize = 160;
@@ -54,7 +62,7 @@ const N_SAMPLES: usize = 160;
 // =========================================================================
 
 /// 24-bit signed ADC full-scale count limit (2^23 = 8,388,608 LSBs for 1.2 V FSR).
-pub const ADC_FULL_SCALE_COUNTS: f32 = 8388608.0; 
+pub const ADC_FULL_SCALE_COUNTS: f32 = 8388608.0;
 
 /// Voltage input scaling factor to ADC counts (LSB/V).
 /// Derived from: (ADC_FSR_COUNTS / Vref) / (Resistor_Divider_Ratio * PGA_Gain).
@@ -76,32 +84,32 @@ const ENABLE_HARMONICS: bool = true;
 
 /// Realistic grid voltage harmonic distortion (EN 50160 compliant, THD-V ≈ 2.2%)
 const VOLTAGE_HARMONICS: [(f32, f32); 11] = [
-    (3.0,  0.015), // 3rd: 1.5% (Triplen harmonic from single-phase loads)
-    (5.0,  0.012), // 5th: 1.2% (Typical 6-pulse bridge distortion)
-    (7.0,  0.008), // 7th: 0.8%
-    (9.0,  0.003), // 9th: 0.3%
-    (11.0, 0.002), // 11th: 0.2%
-    (13.0, 0.001), // 13th: 0.1%
-    (15.0, 0.001), // 15th: 0.1%
-    (17.0, 0.0005),// 17th: 0.05%
-    (19.0, 0.0005),// 19th: 0.05%
-    (21.0, 0.0002),// 21st: 0.02%
-    (23.0, 0.0001),// 23rd: 0.01%
+    (3.0, 0.015),   // 3rd: 1.5% (Triplen harmonic from single-phase loads)
+    (5.0, 0.012),   // 5th: 1.2% (Typical 6-pulse bridge distortion)
+    (7.0, 0.008),   // 7th: 0.8%
+    (9.0, 0.003),   // 9th: 0.3%
+    (11.0, 0.002),  // 11th: 0.2%
+    (13.0, 0.001),  // 13th: 0.1%
+    (15.0, 0.001),  // 15th: 0.1%
+    (17.0, 0.0005), // 17th: 0.05%
+    (19.0, 0.0005), // 19th: 0.05%
+    (21.0, 0.0002), // 21st: 0.02%
+    (23.0, 0.0001), // 23rd: 0.01%
 ];
 
 /// Realistic nonlinear load current distortion (VFDs, LED drivers, THD-I ≈ 8.5%)
 const CURRENT_HARMONICS: [(f32, f32); 11] = [
-    (3.0,  0.065), // 3rd: 6.5%
-    (5.0,  0.045), // 5th: 4.5%
-    (7.0,  0.025), // 7th: 2.5%
-    (9.0,  0.012), // 9th: 1.2%
-    (11.0, 0.008), // 11th: 0.8%
-    (13.0, 0.005), // 13th: 0.5%
-    (15.0, 0.003), // 15th: 0.3%
-    (17.0, 0.002), // 17th: 0.2%
-    (19.0, 0.001), // 19th: 0.1%
-    (21.0, 0.001), // 21st: 0.1%
-    (23.0, 0.0005),// 23rd: 0.05%
+    (3.0, 0.065),   // 3rd: 6.5%
+    (5.0, 0.045),   // 5th: 4.5%
+    (7.0, 0.025),   // 7th: 2.5%
+    (9.0, 0.012),   // 9th: 1.2%
+    (11.0, 0.008),  // 11th: 0.8%
+    (13.0, 0.005),  // 13th: 0.5%
+    (15.0, 0.003),  // 15th: 0.3%
+    (17.0, 0.002),  // 17th: 0.2%
+    (19.0, 0.001),  // 19th: 0.1%
+    (21.0, 0.001),  // 21st: 0.1%
+    (23.0, 0.0005), // 23rd: 0.05%
 ];
 
 #[cfg(not(feature = "rand"))]
@@ -198,37 +206,45 @@ fn gen_one_signal(
         .map(|i| {
             let a = angle_rad(phase_deg, i);
             if is_voltage {
-                peak * a.sin()
+                peak * crate::math::sin(a)
             } else {
-                peak * (a + offset(IPHASE)).sin()
+                peak * crate::math::sin(a + offset(IPHASE))
             }
         })
         .collect();
 
     if ENABLE_HARMONICS {
-        let harmonics = if is_voltage { &VOLTAGE_HARMONICS[..] } else { &CURRENT_HARMONICS[..] };
+        let harmonics = if is_voltage {
+            &VOLTAGE_HARMONICS[..]
+        } else {
+            &CURRENT_HARMONICS[..]
+        };
         for (harm_order, perc) in harmonics {
             let freq = F * harm_order;
             let harm_peak = peak * perc;
-            for i in 0..N_SAMPLES {
+            for (i, s) in sig.iter_mut().enumerate() {
                 let harm_angle = offset(phase_deg) + 2.0 * PI * freq / FS * i as f32;
                 if is_voltage {
-                    sig[i] += harm_peak * harm_angle.sin();
+                    *s += harm_peak * crate::math::sin(harm_angle);
                 } else {
-                    sig[i] += harm_peak * (harm_angle + offset(IPHASE)).sin();
+                    *s += harm_peak * crate::math::sin(harm_angle + offset(IPHASE));
                 }
             }
         }
     }
 
     if NOISE_VPEAK_PERCENT > 0.0 && is_voltage {
-        for i in 0..N_SAMPLES {
-            sig[i] += peak * (NOISE_VPEAK_PERCENT * (offset(0.0) + 2.0 * PI * NOISE_FREQ / FS * i as f32).sin());
+        for (i, s) in sig.iter_mut().enumerate() {
+            *s += peak
+                * (NOISE_VPEAK_PERCENT
+                    * crate::math::sin(offset(0.0) + 2.0 * PI * NOISE_FREQ / FS * i as f32));
         }
     }
     if NOISE_IPEAK_PERCENT > 0.0 && !is_voltage {
-        for i in 0..N_SAMPLES {
-            sig[i] += peak * (NOISE_IPEAK_PERCENT * (offset(0.0) + 2.0 * PI * NOISE_FREQ / FS * i as f32).sin());
+        for (i, s) in sig.iter_mut().enumerate() {
+            *s += peak
+                * (NOISE_IPEAK_PERCENT
+                    * crate::math::sin(offset(0.0) + 2.0 * PI * NOISE_FREQ / FS * i as f32));
         }
     }
     if NOISE_RANDOM_PERCENT > 0.0 {
@@ -249,9 +265,8 @@ fn gen_noise() -> (alloc::vec::Vec<f32>, f32, f32) {
     if NOISE_RANDOM_PERCENT > 0.0 {
         #[cfg(feature = "rand")]
         {
-            let noise: alloc::vec::Vec<f32> = (0..N_SAMPLES)
-                .map(|_| rand::random::<f32>())
-                .collect();
+            let noise: alloc::vec::Vec<f32> =
+                (0..N_SAMPLES).map(|_| rand::random::<f32>()).collect();
             let noise_mean = noise.iter().copied().sum::<f32>() / noise.len() as f32;
             let noise_max = noise.iter().copied().fold(f32::NEG_INFINITY, f32::max);
             (noise, noise_mean, noise_max)
@@ -259,9 +274,7 @@ fn gen_noise() -> (alloc::vec::Vec<f32>, f32, f32) {
         #[cfg(not(feature = "rand"))]
         {
             let mut rng = SimpleRng(42);
-            let noise: alloc::vec::Vec<f32> = (0..N_SAMPLES)
-                .map(|_| rng.next_f32())
-                .collect();
+            let noise: alloc::vec::Vec<f32> = (0..N_SAMPLES).map(|_| rng.next_f32()).collect();
             let noise_mean = noise.iter().copied().sum::<f32>() / noise.len() as f32;
             let noise_max = noise.iter().copied().fold(f32::NEG_INFINITY, f32::max);
             (noise, noise_mean, noise_max)
@@ -281,7 +294,9 @@ fn gen_noise() -> (alloc::vec::Vec<f32>, f32, f32) {
 ///
 /// A vector of integer ADC counts.
 fn to_i32_vec(v: alloc::vec::Vec<f32>) -> alloc::vec::Vec<i32> {
-    v.into_iter().map(|s| (s + SAMPLES_OFFSET).trunc() as i32).collect()
+    v.into_iter()
+        .map(|s| crate::math::trunc(s + SAMPLES_OFFSET) as i32)
+        .collect()
 }
 
 /// Generates single-phase voltage and current sample buffers in ADC counts.
@@ -326,13 +341,19 @@ pub fn generate_signals() -> alloc::vec::Vec<alloc::vec::Vec<i32>> {
     let i_c = gen_one_signal(-120.0, i_peak, false, &noise, noise_mean, noise_max);
 
     let unused = alloc::vec![0.0; N_SAMPLES];
-    
+
     let i_n: alloc::vec::Vec<f32> = (0..N_SAMPLES)
         .map(|i| -(i_a[i] + i_b[i] + i_c[i]))
         .collect();
 
-    alloc::vec![to_i32_vec(v_a), to_i32_vec(i_a),
-         to_i32_vec(v_b), to_i32_vec(i_b),
-         to_i32_vec(v_c), to_i32_vec(i_c),
-         to_i32_vec(i_n), to_i32_vec(unused)]
+    alloc::vec![
+        to_i32_vec(v_a),
+        to_i32_vec(i_a),
+        to_i32_vec(v_b),
+        to_i32_vec(i_b),
+        to_i32_vec(v_c),
+        to_i32_vec(i_c),
+        to_i32_vec(i_n),
+        to_i32_vec(unused)
+    ]
 }

@@ -20,7 +20,13 @@
 ///
 /// The averaged product (e.g. mean power), or 0.0 when the input is invalid or
 /// the signals are too short for interpolation.
-fn calculate_signal_power(signal1: &[f32], signal2: &[f32], length: usize, frequency: f32, adc_samples_second: f32) -> f32 {
+fn calculate_signal_power(
+    signal1: &[f32],
+    signal2: &[f32],
+    length: usize,
+    frequency: f32,
+    adc_samples_second: f32,
+) -> f32 {
     if length == 0 || signal1.is_empty() || signal2.is_empty() {
         return 0.0;
     }
@@ -30,7 +36,7 @@ fn calculate_signal_power(signal1: &[f32], signal2: &[f32], length: usize, frequ
     let mut p_length = length as f32;
 
     if frequency > 0.0 {
-        d_length = (adc_samples_second / frequency).fract();
+        d_length = crate::math::fract(adc_samples_second / frequency);
         p_length = n_length + d_length;
     }
 
@@ -73,15 +79,21 @@ fn calculate_signal_power(signal1: &[f32], signal2: &[f32], length: usize, frequ
 /// # Returns
 ///
 /// The RMS value, or 0.0 when the input is empty or the computed power is zero.
-pub fn calculate_rms(signal: &[f32], length_cycle: usize, frequency: f32, adc_samples_second: f32) -> f32 {
+pub fn calculate_rms(
+    signal: &[f32],
+    length_cycle: usize,
+    frequency: f32,
+    adc_samples_second: f32,
+) -> f32 {
     if length_cycle == 0 || signal.is_empty() {
         return 0.0;
     }
 
-    let power: f32 = calculate_signal_power(signal, signal, length_cycle, frequency, adc_samples_second);
+    let power: f32 =
+        calculate_signal_power(signal, signal, length_cycle, frequency, adc_samples_second);
 
     if power > 0.0 {
-        power.sqrt()
+        crate::math::sqrt(power)
     } else {
         0.0
     }

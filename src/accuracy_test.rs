@@ -5,7 +5,7 @@
 
 use crate::{
     CalibrationFactors, MetrologyInsight, MetrologyInsightConfig, PhaseConfig, PllConfig,
-    SignalConfig, MAX_SIGNAL_SAMPLES, FREQ_NOMINAL_50, FREQ_NOMINAL_60,
+    SignalConfig, FREQ_NOMINAL_50, FREQ_NOMINAL_60, MAX_SIGNAL_SAMPLES,
 };
 
 /// Per-phase test configuration for polyphase accuracy tests.
@@ -80,7 +80,9 @@ fn make_test_config(fs: f32, freq: f32) -> MetrologyInsightConfig {
             integrator_clamp: 0.1,
             lock_ema_alpha: 0.1,
         },
-        phase: PhaseConfig { direction_deadband_deg: 10.0 },
+        phase: PhaseConfig {
+            direction_deadband_deg: 10.0,
+        },
         signal: SignalConfig {
             half_cycle_min_factor: 0.4,
             rms_consistency_min_guard: 1e-6,
@@ -136,7 +138,8 @@ fn clear_cycle(insight: &mut MetrologyInsight, phase_idx: usize) {
 fn energy_wh(insight: &MetrologyInsight) -> f64 {
     // imported() / exported() return kWh; convert to Wh
     (insight.socket.energy_metrics.active.imported()
-        - insight.socket.energy_metrics.active.exported()) * 1000.0
+        - insight.socket.energy_metrics.active.exported())
+        * 1000.0
 }
 
 /// Generates one cycle of pure-sine voltage and current waveforms at the given power factor.
@@ -159,16 +162,16 @@ pub fn generate_cycle(
     freq: f32,
     fs: f32,
 ) -> (alloc::vec::Vec<f32>, alloc::vec::Vec<f32>) {
-    let n = (fs / freq).round() as usize;
+    let n = crate::math::round(fs / freq) as usize;
     let v_peak = v_rms * core::f32::consts::SQRT_2;
     let i_peak = i_rms * core::f32::consts::SQRT_2;
-    let phi = pf.acos();
+    let phi = crate::math::acos(pf);
     use core::f32::consts::PI;
     let v: alloc::vec::Vec<f32> = (0..n)
-        .map(|i| v_peak * (2.0 * PI * freq / fs * i as f32).sin())
+        .map(|i| v_peak * crate::math::sin(2.0 * PI * freq / fs * i as f32))
         .collect();
     let i: alloc::vec::Vec<f32> = (0..n)
-        .map(|i| i_peak * (2.0 * PI * freq / fs * i as f32 - phi).sin())
+        .map(|i| i_peak * crate::math::sin(2.0 * PI * freq / fs * i as f32 - phi))
         .collect();
     (v, i)
 }
@@ -195,20 +198,20 @@ pub fn generate_cycle_with_harmonics(
     freq: f32,
     fs: f32,
 ) -> (alloc::vec::Vec<f32>, alloc::vec::Vec<f32>) {
-    let n = (fs / freq).round() as usize;
+    let n = crate::math::round(fs / freq) as usize;
     let v_peak = v_rms * core::f32::consts::SQRT_2;
     let i_peak = i_rms * core::f32::consts::SQRT_2;
     use core::f32::consts::PI;
     let v: alloc::vec::Vec<f32> = (0..n)
-        .map(|i| v_peak * (2.0 * PI * freq / fs * i as f32).sin())
+        .map(|i| v_peak * crate::math::sin(2.0 * PI * freq / fs * i as f32))
         .collect();
     let i: alloc::vec::Vec<f32> = (0..n)
         .map(|i| {
             let t = 2.0 * PI * freq / fs * i as f32;
-            let fund = i_peak * t.sin();
+            let fund = i_peak * crate::math::sin(t);
             let harm: f32 = HARMONIC_AMPS
                 .iter()
-                .map(|&(h, a)| i_peak * a * (h as f32 * t).sin())
+                .map(|&(h, a)| i_peak * a * crate::math::sin(h as f32 * t))
                 .sum();
             fund + harm
         })
@@ -236,17 +239,17 @@ pub fn generate_half_wave_cycle(
     freq: f32,
     fs: f32,
 ) -> (alloc::vec::Vec<f32>, alloc::vec::Vec<f32>) {
-    let n = (fs / freq).round() as usize;
+    let n = crate::math::round(fs / freq) as usize;
     let v_peak = v_rms * core::f32::consts::SQRT_2;
     let i_peak = i_rms * core::f32::consts::SQRT_2;
-    let phi = pf.acos();
+    let phi = crate::math::acos(pf);
     use core::f32::consts::PI;
     let v: alloc::vec::Vec<f32> = (0..n)
-        .map(|i| v_peak * (2.0 * PI * freq / fs * i as f32).sin())
+        .map(|i| v_peak * crate::math::sin(2.0 * PI * freq / fs * i as f32))
         .collect();
     let i: alloc::vec::Vec<f32> = (0..n)
         .map(|i| {
-            let val = i_peak * (2.0 * PI * freq / fs * i as f32 - phi).sin();
+            let val = i_peak * crate::math::sin(2.0 * PI * freq / fs * i as f32 - phi);
             val.max(0.0)
         })
         .collect();
@@ -281,8 +284,8 @@ pub fn run_polyphase_accuracy_test(
     let time_s = dt_s as f64 * cycles as f64;
 
     for _ in 0..cycles {
-        for p in 0..3 {
-            let (v, i) = generate_cycle(phases[p].v_rms, phases[p].i_rms, phases[p].pf, freq, fs);
+        for (p, ph) in phases.iter().enumerate() {
+            let (v, i) = generate_cycle(ph.v_rms, ph.i_rms, ph.pf, freq, fs);
             push_cycle(&mut insight, &v, &i, p);
         }
         insight.process_and_update_metrics(3);
@@ -384,7 +387,11 @@ mod tests {
     /// Checks that the polyphase accuracy error is below 1 % for a balanced load.
     #[test]
     fn test_polyphase_balanced() {
-        let ph = PhaseTestPoint { v_rms: 230.0, i_rms: 5.0, pf: 1.0 };
+        let ph = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 5.0,
+            pf: 1.0,
+        };
         let r = run_polyphase_accuracy_test([ph, ph, ph], 50.0, 100);
         assert!(
             r.error_pct.abs() < 1.0,
@@ -396,8 +403,16 @@ mod tests {
     /// Checks the polyphase accuracy error when only phase 0 is loaded.
     #[test]
     fn test_polyphase_unbalanced_phase0_only() {
-        let loaded = PhaseTestPoint { v_rms: 230.0, i_rms: 5.0, pf: 1.0 };
-        let unloaded = PhaseTestPoint { v_rms: 230.0, i_rms: 0.0, pf: 1.0 };
+        let loaded = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 5.0,
+            pf: 1.0,
+        };
+        let unloaded = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 0.0,
+            pf: 1.0,
+        };
         let r = run_polyphase_accuracy_test([loaded, unloaded, unloaded], 50.0, 200);
         assert!(
             r.error_pct.abs() < 1.0,
@@ -409,9 +424,21 @@ mod tests {
     /// Checks the polyphase accuracy error for three phases with different loads and power factors.
     #[test]
     fn test_polyphase_unbalanced_uneven() {
-        let ph0 = PhaseTestPoint { v_rms: 230.0, i_rms: 5.0, pf: 1.0 };
-        let ph1 = PhaseTestPoint { v_rms: 230.0, i_rms: 2.5, pf: 0.8 };
-        let ph2 = PhaseTestPoint { v_rms: 230.0, i_rms: 1.0, pf: 0.5 };
+        let ph0 = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 5.0,
+            pf: 1.0,
+        };
+        let ph1 = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 2.5,
+            pf: 0.8,
+        };
+        let ph2 = PhaseTestPoint {
+            v_rms: 230.0,
+            i_rms: 1.0,
+            pf: 0.5,
+        };
         let r = run_polyphase_accuracy_test([ph0, ph1, ph2], 50.0, 200);
         assert!(
             r.error_pct.abs() < 1.0,
@@ -484,10 +511,10 @@ mod tests {
         let mean = results.iter().copied().sum::<f64>() / results.len() as f64;
         let variance = results
             .iter()
-            .map(|&x| (x - mean).powi(2))
+            .map(|&x| crate::math::powi64(x - mean, 2))
             .sum::<f64>()
             / results.len() as f64;
-        let std_dev = variance.sqrt();
+        let std_dev = crate::math::sqrt64(variance);
         assert!(
             std_dev < 0.05,
             "Repeatability std_dev too high: {:.6}%",

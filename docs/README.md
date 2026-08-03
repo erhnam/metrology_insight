@@ -1,11 +1,14 @@
 # metrology_insight — Documentation
 
+> **Standards support (pre-compliance):** This library implements measurement algorithms derived from several IEC standards. It is intended for development, evaluation, and pre-compliance testing. It has not been certified or validated as fully compliant with the referenced standards. See [COMPLIANCE_STATUS.md](./COMPLIANCE_STATUS.md) for the per-clause status.
+
 ## Files
 
 | Document | Description |
 |-----------|-------------|
 | [API_REFERENCE.md](./API_REFERENCE.md) | Complete reference of all modules, types, functions and constants (English) |
 | [API_REFERENCE_ES.md](./API_REFERENCE_ES.md) | Complete reference of all modules, types, functions and constants (Spanish) |
+| [COMPLIANCE_STATUS.md](./COMPLIANCE_STATUS.md) | Per-clause standards compliance status (pre-compliance) |
 
 ## Quick Start
 
@@ -49,13 +52,15 @@ To avoid data loss (missed ADC samples) during intensive mathematical processing
 
 ## Standards Compliance
 
-| Standard | Application |
-|----------|-----------|
-| IEC 61000-4-30:2021 Class S | Quality flags, synchronous resampling, 10-cycle RMS, 10 s frequency, Fortescue unbalance, Dips/Swells/RVC |
-| IEC 62053-21 (2nd Ed.) | Static meters for AC active energy (Classes 1 and 2), 4-Quadrant energy metering |
-| IEC 61000-4-15 | Flickermeter Blocks 1–4 ($P_{\text{inst}}$, $P_{\text{st}}$, $P_{\text{lt}}$) — incorporated by reference via IEC 61000-4-30 §5.7 |
-| IEC 62053-23 | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
-| EN 50160 | Quality events: Dip, Swell, Interruption, RVC threshold limits |
+Pre-compliance status — not certified. See [COMPLIANCE_STATUS.md](./COMPLIANCE_STATUS.md) for the per-clause breakdown.
+
+| Standard | Status | Application |
+|----------|--------|-----------|
+| IEC 61000-4-30:2021 Class S | Partial implementation | Quality flags, synchronous resampling, 10-cycle RMS, 10 s frequency, Fortescue unbalance, Dips/Swells/RVC |
+| IEC 62053-21 (2nd Ed.) | Algorithm / pre-compliance | Static meters for AC active energy (Classes 1/2 limits), 4-Quadrant energy metering — simulation only |
+| IEC 61000-4-15 | Algorithm implementation | Flickermeter Blocks 1–4 ($P_{\text{inst}}$ realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
+| IEC 62053-23 | Algorithm implementation | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
+| EN 50160 | Partial implementation | Quality events: Dip, Swell, Interruption, RVC threshold limits |
 
 ## Runtime Configuration
 

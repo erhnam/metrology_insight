@@ -31,7 +31,13 @@ pub const PLL_ERROR_ACCUM_THRESHOLD: f32 = 0.1;
 /// * `fs` — Sampling rate in Hz.
 /// * `nominal_freq` — Nominal system frequency in Hz.
 /// * `cfg` — PLL configuration parameters.
-pub fn update_pll(state: &mut PllState, samples: &[f32], fs: f32, nominal_freq: f32, cfg: &PllConfig) {
+pub fn update_pll(
+    state: &mut PllState,
+    samples: &[f32],
+    fs: f32,
+    nominal_freq: f32,
+    cfg: &PllConfig,
+) {
     let ts = 1.0 / fs;
 
     if state.freq_est == 0.0 {
@@ -39,12 +45,18 @@ pub fn update_pll(state: &mut PllState, samples: &[f32], fs: f32, nominal_freq: 
     }
 
     for &sample in samples {
-        let input_norm = if sample.abs() > cfg.norm_threshold { sample.signum() } else { 0.0 };
+        let input_norm = if sample.abs() > cfg.norm_threshold {
+            sample.signum()
+        } else {
+            0.0
+        };
 
-        let phase_error = -f32::sin(state.phase) * input_norm;
+        let phase_error = -crate::math::sin(state.phase) * input_norm;
 
         state.integrator += cfg.ki * phase_error;
-        state.integrator = state.integrator.clamp(-cfg.integrator_clamp, cfg.integrator_clamp);
+        state.integrator = state
+            .integrator
+            .clamp(-cfg.integrator_clamp, cfg.integrator_clamp);
         let freq_corr = cfg.kp * phase_error + state.integrator;
 
         state.freq_est = nominal_freq + freq_corr;
@@ -58,14 +70,15 @@ pub fn update_pll(state: &mut PllState, samples: &[f32], fs: f32, nominal_freq: 
         }
     }
 
-    state.error_accum = state.error_accum * PLL_LOCK_EMA_DECAY + (nominal_freq - state.freq_est).abs() * cfg.lock_ema_alpha;
+    state.error_accum = state.error_accum * PLL_LOCK_EMA_DECAY
+        + (nominal_freq - state.freq_est).abs() * cfg.lock_ema_alpha;
     state.locked = state.error_accum < cfg.lock_threshold;
 
     // Update 10-second moving average ring buffer using 1-second bins (EN 61000-4-30 Sec 5.1 requirement)
     state.cycle_freq_sum += state.freq_est;
     state.cycle_freq_count += 1;
 
-    let cycles_per_sec = (nominal_freq.round() as usize).max(1);
+    let cycles_per_sec = (crate::math::round(nominal_freq) as usize).max(1);
     if state.cycle_freq_count >= cycles_per_sec {
         let avg_1s = state.cycle_freq_sum / (state.cycle_freq_count as f32);
         state.freq_buf[state.freq_buf_idx] = avg_1s;

@@ -28,14 +28,16 @@ fn a() -> Complex<f32> {
 /// # Returns
 ///
 /// A tuple with the zero, positive, and negative sequence components.
-fn symmetrical_components(pa: Complex<f32>, pb: Complex<f32>, pc: Complex<f32>)
-    -> (Complex<f32>, Complex<f32>, Complex<f32>)
-{
+fn symmetrical_components(
+    pa: Complex<f32>,
+    pb: Complex<f32>,
+    pc: Complex<f32>,
+) -> (Complex<f32>, Complex<f32>, Complex<f32>) {
     let a_val = a();
     let a_sq = a_val * a_val;
     let zero = (pa + pb + pc) / 3.0;
-    let pos  = (pa + a_val * pb + a_sq * pc) / 3.0;
-    let neg  = (pa + a_sq * pb + a_val * pc) / 3.0;
+    let pos = (pa + a_val * pb + a_sq * pc) / 3.0;
+    let neg = (pa + a_sq * pb + a_val * pc) / 3.0;
     (zero, pos, neg)
 }
 
@@ -72,11 +74,13 @@ fn test_positive_sequence_dominant() {
     // In a balanced positive sequence: positive = 230 V, negative ≈ 0
     assert!(
         (pos.norm() - 230.0).abs() < 0.1,
-        "Positive seq magnitude {:.2} V ≠ 230 V", pos.norm()
+        "Positive seq magnitude {:.2} V ≠ 230 V",
+        pos.norm()
     );
     assert!(
         neg.norm() < 0.1,
-        "Negative seq magnitude {:.4} V should be ~0", neg.norm()
+        "Negative seq magnitude {:.4} V should be ~0",
+        neg.norm()
     );
 }
 
@@ -99,11 +103,13 @@ fn test_negative_sequence_dominant() {
     // In a balanced negative sequence: positive ≈ 0, negative = 230 V
     assert!(
         pos.norm() < 0.1,
-        "Positive seq magnitude {:.4} V should be ~0", pos.norm()
+        "Positive seq magnitude {:.4} V should be ~0",
+        pos.norm()
     );
     assert!(
         (neg.norm() - 230.0).abs() < 0.1,
-        "Negative seq magnitude {:.2} V ≠ 230 V", neg.norm()
+        "Negative seq magnitude {:.2} V ≠ 230 V",
+        neg.norm()
     );
 }
 
@@ -125,15 +131,18 @@ fn test_zero_sequence_dominant() {
 
     assert!(
         (zero.norm() - 230.0).abs() < 0.1,
-        "Zero seq magnitude {:.2} V ≠ 230 V", zero.norm()
+        "Zero seq magnitude {:.2} V ≠ 230 V",
+        zero.norm()
     );
     assert!(
         pos.norm() < 0.1,
-        "Positive seq magnitude {:.4} V should be ~0", pos.norm()
+        "Positive seq magnitude {:.4} V should be ~0",
+        pos.norm()
     );
     assert!(
         neg.norm() < 0.1,
-        "Negative seq magnitude {:.4} V should be ~0", neg.norm()
+        "Negative seq magnitude {:.4} V should be ~0",
+        neg.norm()
     );
 }
 
@@ -158,11 +167,13 @@ fn test_unbalanced_sequence_identification() {
     assert!(
         pos.norm() > neg.norm(),
         "Positive seq {:.2} V should dominate over negative seq {:.2} V",
-        pos.norm(), neg.norm()
+        pos.norm(),
+        neg.norm()
     );
     assert!(
         pos.norm() > 200.0,
-        "Positive seq magnitude {:.2} V unreasonably low", pos.norm()
+        "Positive seq magnitude {:.2} V unreasonably low",
+        pos.norm()
     );
 }
 
@@ -198,10 +209,12 @@ fn test_phase_swap_l1_l2() {
 
     assert!(
         pos.norm() < 1.0,
-        "Positive seq {:.4} V should be ~0 after L1↔L2 swap", pos.norm()
+        "Positive seq {:.4} V should be ~0 after L1↔L2 swap",
+        pos.norm()
     );
     assert!(
         (neg.norm() - 230.0).abs() < 1.0,
-        "Negative seq {:.2} V should be ~230 V after L1↔L2 swap", neg.norm()
+        "Negative seq {:.2} V should be ~230 V after L1↔L2 swap",
+        neg.norm()
     );
 }

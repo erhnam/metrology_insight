@@ -25,7 +25,7 @@ use metrology_insight::types::TimeModel;
 /// tolerance.
 fn run_drift_test(crystal_ppm: f64, tolerance_s: f64) {
     let duration_s = 24.0 * 3600.0; // 24 hours
-    let sample_interval_s = 1.0;     // evaluate every 1 second
+    let sample_interval_s = 1.0; // evaluate every 1 second
     let samples = (duration_s / sample_interval_s) as u64;
 
     // True UTC at boot (ns)
@@ -81,7 +81,9 @@ fn run_drift_test(crystal_ppm: f64, tolerance_s: f64) {
     assert!(
         max_error_s <= tolerance_s,
         "Drift error {:.4}s exceeds tolerance {:.2}s at {} ppm",
-        max_error_s, tolerance_s, crystal_ppm
+        max_error_s,
+        tolerance_s,
+        crystal_ppm
     );
 }
 
@@ -199,7 +201,9 @@ fn test_recalibrate_at_12h() {
             -((true_utc_ns - corrected_ns) as f64 / 1e9)
         };
         max_error_s = max_error_s.max(error_s.abs());
-        if hour == 13 { first_after_recalib_s = error_s.abs(); }
+        if hour == 13 {
+            first_after_recalib_s = error_s.abs();
+        }
     }
 
     assert!(

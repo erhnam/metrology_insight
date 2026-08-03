@@ -38,7 +38,6 @@ const RAW_BUFFER_LEN: usize = 512;
 /// # Returns
 ///
 /// A new vector of `new_len` linearly interpolated samples.
-#[cfg(feature = "alloc")]
 pub fn resample_signal(signal: &[f32], new_len: usize) -> alloc::vec::Vec<f32> {
     let n = signal.len();
     let step = n as f32 / new_len as f32;
@@ -46,7 +45,7 @@ pub fn resample_signal(signal: &[f32], new_len: usize) -> alloc::vec::Vec<f32> {
 
     for i in 0..new_len {
         let pos = i as f32 * step;
-        let idx0 = pos.floor() as usize % n;
+        let idx0 = crate::math::floor(pos) as usize % n;
         let idx1 = (idx0 + 1) % n;
         let fraction = pos - idx0 as f32;
 
@@ -93,7 +92,7 @@ fn calculate_harmonics_and_thd(
         }
     }
 
-    let thd = thd_sq_sum.sqrt() * 100.0;
+    let thd = crate::math::sqrt(thd_sq_sum) * 100.0;
     (harmonics, thd)
 }
 
@@ -119,12 +118,14 @@ fn compute_magnitudes(
 
     // 2. Compute true physical RMS/Peak absolute magnitudes from complex bins
     // Bin 0 (DC component) does not carry the single-sided 2.0 multiplier factor
-    magnitudes[0] = (spectrum[0].re * spectrum[0].re + spectrum[0].im * spectrum[0].im).sqrt()
-        / (FFT_RESOLUTION as f32);
+    magnitudes[0] =
+        crate::math::sqrt(spectrum[0].re * spectrum[0].re + spectrum[0].im * spectrum[0].im)
+            / (FFT_RESOLUTION as f32);
 
     // Bins 1..N (AC components and higher harmonics)
     for i in 1..n {
-        let mag_raw = (spectrum[i].re * spectrum[i].re + spectrum[i].im * spectrum[i].im).sqrt();
+        let mag_raw =
+            crate::math::sqrt(spectrum[i].re * spectrum[i].re + spectrum[i].im * spectrum[i].im);
         magnitudes[i] = mag_raw * scale_factor;
     }
 
@@ -151,7 +152,11 @@ fn compute_magnitudes(
     }
 
     // 4. Compute relative spectrum percentages and THD
-    Some(calculate_harmonics_and_thd(magnitudes, fund_bin, fundamental_mag))
+    Some(calculate_harmonics_and_thd(
+        magnitudes,
+        fund_bin,
+        fundamental_mag,
+    ))
 }
 
 /// Caches raw and resampled buffers used for FFT-based harmonic computation.
@@ -246,7 +251,7 @@ impl FftCache {
 
         // Number of raw samples that cover exactly CYCLES_PER_WINDOW cycles
         // of the real measured frequency.
-        let raw_span = ((CYCLES_PER_WINDOW as f32) * fs / freq).round() as usize;
+        let raw_span = crate::math::round((CYCLES_PER_WINDOW as f32) * fs / freq) as usize;
         let raw_span = raw_span.clamp(2, RAW_BUFFER_LEN);
 
         // The circular buffer must already contain at least raw_span samples.
@@ -273,7 +278,7 @@ impl FftCache {
 
 /// Incremental Goertzel-based accumulator for 49 interharmonic subgroup magnitudes.
 ///
-/// Per IEC 61000-4-30 §5.5 (Class S: method left to manufacturer's discretion).
+/// Per IEC 61000-4-30 §5.9 (Class S: method left to manufacturer's discretion).
 /// Each interharmonic subgroup i (0..49) covers the band between
 /// harmonic (i+1) and (i+2), centered at (i+1.5) × fnominal.
 ///
@@ -364,11 +369,11 @@ impl InterharmonicAccumulator {
         let n = self.count as f32;
         let mut result = [0.0; INTERHARMONIC_GROUPS];
 
-        for i in 0..INTERHARMONIC_GROUPS {
+        for (i, res) in result.iter_mut().enumerate() {
             let power = self.q1[i] * self.q1[i] + self.q2[i] * self.q2[i]
                 - self.coeffs[i] * self.q1[i] * self.q2[i];
-            let mag = (power / (n * n)).sqrt() * 2.0;
-            result[i] = if fundamental_mag > FFT_MIN_FUNDAMENTAL_MAG {
+            let mag = crate::math::sqrt(power / (n * n)) * 2.0;
+            *res = if fundamental_mag > FFT_MIN_FUNDAMENTAL_MAG {
                 (mag / fundamental_mag) * 100.0
             } else {
                 0.0
@@ -411,10 +416,12 @@ mod tests {
     ///
     /// A vector of `n` sine wave samples.
     fn generate_sine(freq: f32, fs: f32, n: usize, amp: f32) -> alloc::vec::Vec<f32> {
-        (0..n).map(|i| {
-            let t = i as f32 / fs;
-            (core::f32::consts::TAU * freq * t).sin() * amp
-        }).collect()
+        (0..n)
+            .map(|i| {
+                let t = i as f32 / fs;
+                crate::math::sin(core::f32::consts::TAU * freq * t) * amp
+            })
+            .collect()
     }
 
     /// Verifies that a clean 50 Hz sine produces near-zero interharmonic magnitudes in all bands.
@@ -456,11 +463,13 @@ mod tests {
 
         // Generate one continuous 5120-sample buffer across all cycles
         let total_n = FFT_RESOLUTION * CYCLES_FOR_INTERHARMONIC;
-        let full_signal: alloc::vec::Vec<f32> = (0..total_n).map(|i| {
-            let t = i as f32 / fs_sync;
-            (core::f32::consts::TAU * f_fund * t).sin() * amp
-                + (core::f32::consts::TAU * f_inter * t).sin() * inter_amp
-        }).collect();
+        let full_signal: alloc::vec::Vec<f32> = (0..total_n)
+            .map(|i| {
+                let t = i as f32 / fs_sync;
+                crate::math::sin(core::f32::consts::TAU * f_fund * t) * amp
+                    + crate::math::sin(core::f32::consts::TAU * f_inter * t) * inter_amp
+            })
+            .collect();
 
         for c in 0..CYCLES_FOR_INTERHARMONIC {
             let mut buf = [0.0; FFT_RESOLUTION];
@@ -471,8 +480,11 @@ mod tests {
 
         let result = acc.compute(amp).unwrap();
         // Group 0 (between 50-100 Hz, center 75 Hz) should be ~1%
-        assert!((result[0] - 1.0).abs() < 0.3,
-            "Group 0 (75 Hz) expected ~1%, got {}%", result[0]);
+        assert!(
+            (result[0] - 1.0).abs() < 0.3,
+            "Group 0 (75 Hz) expected ~1%, got {}%",
+            result[0]
+        );
         // All other groups should be small
         for (i, &val) in result.iter().enumerate().skip(1) {
             assert!(val < 0.5, "Interharmonic group {} too high: {}%", i, val);

@@ -17,14 +17,35 @@ pub const FLICKER_SMOOTH_TC_SECONDS: f32 = 0.3;
 pub const FLICKER_PST_MIN_SAMPLES: u32 = 100;
 
 pub const SOS_BW_35HZ: [[f32; 6]; 3] = [
-    [6.3954004187e-12, 1.2790800837e-11, 6.3954004187e-12, 1.0000000000e+00, -1.9475393226e+00, 9.4827537525e-01],
-    [1.0000000000e+00, 2.0000000000e+00, 1.0000000000e+00, 1.0000000000e+00, -1.9611295301e+00, 9.6187071893e-01],
-    [1.0000000000e+00, 2.0000000000e+00, 1.0000000000e+00, 1.0000000000e+00, -1.9851227113e+00, 9.8587296816e-01],
+    [
+        6.395_400_3e-12,
+        1.279_080_05e-11,
+        6.395_400_3e-12,
+        1.0,
+        -1.947_539_3,
+        9.482_754e-1,
+    ],
+    [1.0, 2.0, 1.0, 1.0, -1.961_129_5, 9.618_707_3e-1],
+    [1.0, 2.0, 1.0, 1.0, -1.985_122_7, 9.858_73e-1],
 ];
 
 pub const SOS_WEIGHTING: [[f32; 6]; 2] = [
-    [2.8721268961e-05, 5.7442537921e-05, 2.8721268961e-05, 1.0000000000e+00, -1.9935916833e+00, 9.9364321833e-01],
-    [1.0000000000e+00, -1.9982110587e+00, 9.9821105871e-01, 1.0000000000e+00, -1.9819845161e+00, 9.8200092041e-01],
+    [
+        2.872_127e-5,
+        5.744_254e-5,
+        2.872_127e-5,
+        1.0,
+        -1.993_591_7,
+        9.936_432e-1,
+    ],
+    [
+        1.0,
+        -1.998_211,
+        9.982_111e-1,
+        1.0,
+        -1.981_984_5,
+        9.820_009_5e-1,
+    ],
 ];
 
 /// A chain of cascaded biquad second-order sections (Direct Form II Transposed).
@@ -87,18 +108,18 @@ pub struct FlickerMeter {
     // Block 1 & 2
     avg_rms: f32,
     initialized: bool,
-    
+
     // Block 3: HPF 0.05Hz
     b3_hp_prev_in: f32,
     b3_hp_prev_out: f32,
-    
+
     // Block 3: IIR cascaded SOS filters
     bw_filter: BiquadChain<3>,
     wt_filter: BiquadChain<2>,
-    
+
     // Block 4: Squaring and smoothing (300ms time constant)
     b4_smooth_prev: f32,
-    
+
     pub p_inst: f32,
     pub pst_classifier: PstClassifier,
 }
@@ -161,32 +182,32 @@ impl FlickerMeter {
         // Update long-term RMS (approx 1 minute time constant, IEC 61000-4-15 Block 1)
         let alpha_rms = 1.0 / (fs * FLICKER_RMS_TC_SECONDS);
         self.avg_rms = self.avg_rms * (1.0 - alpha_rms) + v_sq * alpha_rms;
-        
-        let v_rms = self.avg_rms.sqrt().max(FLICKER_MIN_RMS_GUARD);
-        
+
+        let v_rms = crate::math::sqrt(self.avg_rms).max(FLICKER_MIN_RMS_GUARD);
+
         // Block 1: Normalization
         let v_pu = v_in / (v_rms * core::f32::consts::SQRT_2);
-        
+
         // Block 2: Demodulation
         let v_demod = v_pu * v_pu;
-        
+
         // Block 3: High Pass (FLICKER_HPF_CUTOFF_HZ) per IEC 61000-4-15
         let rc_hp = 1.0 / (2.0 * core::f32::consts::PI * FLICKER_HPF_CUTOFF_HZ);
         let alpha_hp = rc_hp / (rc_hp + 1.0 / fs);
         let b3_hp_out = alpha_hp * (self.b3_hp_prev_out + v_demod - self.b3_hp_prev_in);
         self.b3_hp_prev_in = v_demod;
         self.b3_hp_prev_out = b3_hp_out;
-        
+
         // Block 3: Butterworth 6th Order LPF (35Hz) + Weighting Filter
         let bw_out = self.bw_filter.process(b3_hp_out);
         let wt_out = self.wt_filter.process(bw_out);
-        
+
         // Block 4: Squaring and Smoothing (FLICKER_SMOOTH_TC_SECONDS) per IEC 61000-4-15
         let block4_in = wt_out * wt_out;
         let alpha_smooth = (1.0 / fs) / (FLICKER_SMOOTH_TC_SECONDS + 1.0 / fs);
         let b4_out = self.b4_smooth_prev + alpha_smooth * (block4_in - self.b4_smooth_prev);
         self.b4_smooth_prev = b4_out;
-        
+
         // True P_inst unit
         self.p_inst = b4_out;
         self.pst_classifier.add_sample(b4_out);
@@ -245,11 +266,15 @@ impl PstClassifier {
     ///
     /// * `p_inst` - Instantaneous flicker perceptibility value to bin.
     pub fn add_sample(&mut self, p_inst: f32) {
-        if p_inst <= 0.0 { return; }
+        if p_inst <= 0.0 {
+            return;
+        }
         let clamped = p_inst.clamp(FLICKER_MIN_P, FLICKER_MAX_P);
         // Logarithmic bin mapping
-        let norm_log = (clamped / FLICKER_MIN_P).ln() / (FLICKER_MAX_P / FLICKER_MIN_P).ln();
-        let bin_idx = ((norm_log * FLICKER_BINS as f32).floor() as usize).min(FLICKER_BINS - 1);
+        let norm_log = crate::math::ln(clamped / FLICKER_MIN_P)
+            / crate::math::ln(FLICKER_MAX_P / FLICKER_MIN_P);
+        let bin_idx =
+            (crate::math::floor(norm_log * FLICKER_BINS as f32) as usize).min(FLICKER_BINS - 1);
         self.histogram[bin_idx] += 1;
         self.total_samples += 1;
     }
@@ -265,7 +290,7 @@ impl PstClassifier {
     /// The P_inst value at the bin center on the logarithmic scale.
     fn bin_to_p_inst(bin_idx: usize) -> f32 {
         let frac = (bin_idx as f32 + 0.5) / FLICKER_BINS as f32;
-        FLICKER_MIN_P * (FLICKER_MAX_P / FLICKER_MIN_P).powf(frac)
+        FLICKER_MIN_P * crate::math::powf(FLICKER_MAX_P / FLICKER_MIN_P, frac)
     }
 
     /// Returns the P_inst value exceeded for the given percentage of the time.
@@ -278,8 +303,10 @@ impl PstClassifier {
     ///
     /// The P_inst value at the requested percentile, or 0.0 if no samples were recorded.
     pub fn get_exceeded_percentile(&self, percent: f32) -> f32 {
-        if self.total_samples == 0 { return 0.0; }
-        let target_count = (self.total_samples as f32 * (percent / 100.0)).round() as u32;
+        if self.total_samples == 0 {
+            return 0.0;
+        }
+        let target_count = crate::math::round(self.total_samples as f32 * (percent / 100.0)) as u32;
         let mut accum = 0;
 
         // Iterate backwards from highest bin to lowest
@@ -298,21 +325,19 @@ impl PstClassifier {
     ///
     /// The weighted Pst value, or 0.0 if fewer than `FLICKER_PST_MIN_SAMPLES` samples were collected.
     pub fn calculate_pst(&self) -> f32 {
-        if self.total_samples < FLICKER_PST_MIN_SAMPLES { return 0.0; }
+        if self.total_samples < FLICKER_PST_MIN_SAMPLES {
+            return 0.0;
+        }
 
         let p_0_1 = self.get_exceeded_percentile(0.1);
-        let p_1   = self.get_exceeded_percentile(1.0);
-        let p_3   = self.get_exceeded_percentile(3.0);
-        let p_10  = self.get_exceeded_percentile(10.0);
-        let p_50  = self.get_exceeded_percentile(50.0);
+        let p_1 = self.get_exceeded_percentile(1.0);
+        let p_3 = self.get_exceeded_percentile(3.0);
+        let p_10 = self.get_exceeded_percentile(10.0);
+        let p_50 = self.get_exceeded_percentile(50.0);
 
-        let sum_sq = 0.0314 * p_0_1
-            + 0.0525 * p_1
-            + 0.0657 * p_3
-            + 0.2800 * p_10
-            + 0.0800 * p_50;
+        let sum_sq = 0.0314 * p_0_1 + 0.0525 * p_1 + 0.0657 * p_3 + 0.2800 * p_10 + 0.0800 * p_50;
 
-        sum_sq.max(0.0).sqrt()
+        crate::math::sqrt(sum_sq.max(0.0))
     }
 }
 
@@ -328,9 +353,9 @@ impl PstClassifier {
 pub fn calculate_plt(pst_12_samples: &[f32; 12]) -> f32 {
     let mut sum_cube = 0.0;
     for &pst in pst_12_samples.iter() {
-        sum_cube += pst.max(0.0).powi(3);
+        sum_cube += crate::math::powi(pst.max(0.0), 3);
     }
-    (sum_cube / 12.0).cbrt()
+    crate::math::cbrt(sum_cube / 12.0)
 }
 
 #[cfg(test)]

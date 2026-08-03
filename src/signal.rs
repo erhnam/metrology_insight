@@ -3,16 +3,15 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    FftCache, MetrologyInsightSignal, MetrologyInsightSignalType,
-    ADC_SAMPLES_50HZ_CYCLE, ADC_SAMPLES_60HZ_CYCLE, FFT_RESOLUTION, FREQ_NOMINAL_50,
-    FREQ_NOMINAL_60, CYCLES_PER_WINDOW,
-    Q_FLAG_OK, Q_FLAG_PLL_UNSETTLED, Q_FLAG_SYNC_INCONSISTENT
-};
-use crate::voltage_current::calculate_rms;
 use super::pll::update_pll;
 use super::resampling::resample_synchronous_into;
 use crate::pll::PLL_ERROR_ACCUM_THRESHOLD;
+use crate::voltage_current::calculate_rms;
+use crate::{
+    FftCache, MetrologyInsightSignal, MetrologyInsightSignalType, ADC_SAMPLES_50HZ_CYCLE,
+    ADC_SAMPLES_60HZ_CYCLE, CYCLES_PER_WINDOW, FFT_RESOLUTION, FREQ_NOMINAL_50, FREQ_NOMINAL_60,
+    Q_FLAG_OK, Q_FLAG_PLL_UNSETTLED, Q_FLAG_SYNC_INCONSISTENT,
+};
 
 pub const ZERO_CROSSING_MAX_POINTS: usize = 3;
 pub const FREQ_ZC_DEBOUNCE: u32 = 2;
@@ -109,9 +108,7 @@ fn calculate_zero_crossing_frequency(signal: &[f32], adc_samples_second: f32) ->
             }
         }
 
-        if debounce > 0 {
-            debounce -= 1;
-        }
+        debounce = debounce.saturating_sub(1);
     }
 
     if num_crossing > 1 {
@@ -146,7 +143,7 @@ fn calculate_zero_crossing_frequency(signal: &[f32], adc_samples_second: f32) ->
 ///
 /// The largest multiple of one cycle that does not exceed `length`.
 fn limit_length_to_cycles(length: usize, frequency: f32, adc_samples_second: f32) -> usize {
-    let one_cycle: usize = (adc_samples_second / frequency).round() as usize;
+    let one_cycle: usize = crate::math::round(adc_samples_second / frequency) as usize;
 
     let length_cycles = (length / one_cycle) * one_cycle;
 
@@ -175,7 +172,9 @@ pub fn update_average(in_value: f32, out_value: &mut f32, avg: f32) {
 ///
 /// * `signal` - Signal samples, modified in place.
 pub fn remove_signal_offset(signal: &mut [f32]) {
-    if signal.is_empty() { return; }
+    if signal.is_empty() {
+        return;
+    }
     let sum: f32 = signal.iter().sum();
     let offset = sum / signal.len() as f32;
 
@@ -195,16 +194,20 @@ pub fn remove_signal_offset(signal: &mut [f32]) {
 /// # Returns
 ///
 /// `true` if the signal has at least 2 samples and sufficient amplitude.
-fn is_signal_valid(signal: &[f32], signal_type: MetrologyInsightSignalType, config: &MetrologyInsightConfig) -> bool {
+fn is_signal_valid(
+    signal: &[f32],
+    signal_type: MetrologyInsightSignalType,
+    config: &MetrologyInsightConfig,
+) -> bool {
     if signal.len() < 2 {
         return false;
     }
 
     let min_amplitude = signal_type.min_amplitude(config);
 
-    let (min_val, max_val) = signal
-        .iter()
-        .fold((f32::MAX, f32::MIN), |(min, max), &x| (min.min(x), max.max(x)));
+    let (min_val, max_val) = signal.iter().fold((f32::MAX, f32::MIN), |(min, max), &x| {
+        (min.min(x), max.max(x))
+    });
 
     let amplitude = max_val - min_val;
 
@@ -223,7 +226,11 @@ fn is_signal_valid(signal: &[f32], signal_type: MetrologyInsightSignalType, conf
 /// # Returns
 ///
 /// A vector with the integral waveform scaled to match the input RMS.
-pub fn signal_integrate(s: &[f32], frequency_zc: f32, adc_samples_second: f32) -> alloc::vec::Vec<f32> {
+pub fn signal_integrate(
+    s: &[f32],
+    frequency_zc: f32,
+    adc_samples_second: f32,
+) -> alloc::vec::Vec<f32> {
     let mut integral: f32 = 0.0;
     let mut res_signal: alloc::vec::Vec<f32> = alloc::vec::Vec::with_capacity(s.len());
 
@@ -238,10 +245,14 @@ pub fn signal_integrate(s: &[f32], frequency_zc: f32, adc_samples_second: f32) -
 
     let integral_rms = calculate_rms(&res_signal, s.len(), frequency_zc, adc_samples_second);
 
-    let int_k = if orms != 0.0 { integral_rms / orms } else { 1.0 };
+    let int_k = if orms != 0.0 {
+        integral_rms / orms
+    } else {
+        1.0
+    };
 
-    for i in 0..res_signal.len() {
-        res_signal[i] = res_signal[i] / int_k;
+    for val in res_signal.iter_mut() {
+        *val /= int_k;
     }
 
     res_signal
@@ -275,23 +286,35 @@ pub fn process_signal(
 
         let freq_zc = if signal.calc_freq {
             let f = calculate_zero_crossing_frequency(real_slice, adc_samples_second);
-            if f == -1.0 { config.nominal_freq } else { f }
+            if f == -1.0 {
+                config.nominal_freq
+            } else {
+                f
+            }
         } else {
             reference_freq_zc
         };
 
         signal.freq_zc = freq_zc;
-        signal.freq_nominal = calculate_nominal_frequency(freq_zc, &mut signal.length, signal.freq_nominal);
-        signal.length_cycle = limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
+        signal.freq_nominal =
+            calculate_nominal_frequency(freq_zc, &mut signal.length, signal.freq_nominal);
+        signal.length_cycle =
+            limit_length_to_cycles(signal.length, signal.freq_nominal, adc_samples_second);
         signal.length = signal.length_cycle + EXTRA_SAMPLES;
 
         let min_samples_half_cycle = signal.length_cycle as f32 * HALF_CYCLE_MIN_FACTOR;
-        let mut prev_v = if real_slice.is_empty() { 0.0 } else { real_slice[0] };
+        let mut prev_v = if real_slice.is_empty() {
+            0.0
+        } else {
+            real_slice[0]
+        };
 
         for &v in real_slice.iter() {
             signal.urms_half_cycle.process_sample(v);
             if (prev_v < 0.0 && v >= 0.0) || (prev_v >= 0.0 && v < 0.0) {
-                signal.urms_half_cycle.half_cycle_trigger(min_samples_half_cycle);
+                signal
+                    .urms_half_cycle
+                    .half_cycle_trigger(min_samples_half_cycle);
             }
             prev_v = v;
         }
@@ -301,13 +324,28 @@ pub fn process_signal(
             signal.peak = peak;
         }
 
-        let rms = calculate_rms(real_slice, signal.length_cycle, signal.freq_zc, adc_samples_second);
+        let rms = calculate_rms(
+            real_slice,
+            signal.length_cycle,
+            signal.freq_zc,
+            adc_samples_second,
+        );
 
         if !signal.is_current() {
-            update_pll(&mut signal.pll_state, real_slice, adc_samples_second, config.nominal_freq, &config.pll);
+            update_pll(
+                &mut signal.pll_state,
+                real_slice,
+                adc_samples_second,
+                config.nominal_freq,
+                &config.pll,
+            );
         }
 
-        let freq_ref = if signal.is_current() { reference_freq_zc } else { signal.pll_state.freq_est };
+        let freq_ref = if signal.is_current() {
+            reference_freq_zc
+        } else {
+            signal.pll_state.freq_est
+        };
 
         let sync_len = resample_synchronous_into(
             real_slice,
@@ -325,7 +363,7 @@ pub fn process_signal(
             for &val in sync_slice.iter() {
                 sum_sq += val * val;
             }
-            let rms_sync = f32::sqrt(sum_sq / (sync_len as f32));
+            let rms_sync = crate::math::sqrt(sum_sq / (sync_len as f32));
             signal.rms_sync = rms_sync;
 
             if signal.rms > RMS_CONSISTENCY_MIN_GUARD {
@@ -333,7 +371,8 @@ pub fn process_signal(
             }
 
             let mut flags = Q_FLAG_OK;
-            if !signal.pll_state.locked || signal.pll_state.error_accum > PLL_ERROR_ACCUM_THRESHOLD {
+            if !signal.pll_state.locked || signal.pll_state.error_accum > PLL_ERROR_ACCUM_THRESHOLD
+            {
                 flags |= Q_FLAG_PLL_UNSETTLED;
             }
             if signal.consistency_error > SYNC_CONSISTENCY_THRESHOLD {
@@ -341,11 +380,11 @@ pub fn process_signal(
             }
             signal.quality_flags = flags;
         }
-        
+
         if sync_len >= FFT_RESOLUTION {
             if let Some((harmonics, thd)) = fft_cache.compute_from_sync_buffer() {
-                for i in 0..harmonics.len() {
-                    update_average(harmonics[i], &mut signal.harmonics[i], config.avg_sec);
+                for (&h, sig_h) in harmonics.iter().zip(signal.harmonics.iter_mut()) {
+                    update_average(h, sig_h, config.avg_sec);
                 }
                 update_average(thd, &mut signal.thd, config.avg_sec);
             }
@@ -358,7 +397,7 @@ pub fn process_signal(
         signal.cycle_10_sq_sum += rms * rms;
         signal.cycle_10_count += 1;
         if signal.cycle_10_count >= 10 {
-            signal.rms_10cycle = (signal.cycle_10_sq_sum / 10.0).sqrt();
+            signal.rms_10cycle = crate::math::sqrt(signal.cycle_10_sq_sum / 10.0);
             signal.cycle_10_sq_sum = 0.0;
             signal.cycle_10_count = 0;
         }

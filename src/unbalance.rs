@@ -10,17 +10,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct UnbalanceMetrics {
     // Voltage symmetrical components
-    pub v0_zero_seq: f32,      // Zero sequence voltage magnitude (V)
-    pub v1_pos_seq: f32,       // Positive sequence voltage magnitude (V)
-    pub v2_neg_seq: f32,       // Negative sequence voltage magnitude (V)
-    pub u2_neg_ratio_pct: f32, // Negative sequence voltage unbalance u2 (%)
+    pub v0_zero_seq: f32,       // Zero sequence voltage magnitude (V)
+    pub v1_pos_seq: f32,        // Positive sequence voltage magnitude (V)
+    pub v2_neg_seq: f32,        // Negative sequence voltage magnitude (V)
+    pub u2_neg_ratio_pct: f32,  // Negative sequence voltage unbalance u2 (%)
     pub u0_zero_ratio_pct: f32, // Zero sequence voltage unbalance u0 (%)
     // Current symmetrical components (§5.13.6)
-    pub i0_zero_seq: f32,      // Zero sequence current magnitude (A)
-    pub i1_pos_seq: f32,       // Positive sequence current magnitude (A)
-    pub i2_neg_seq: f32,       // Negative sequence current magnitude (A)
-    pub u2_i_ratio_pct: f32,   // Negative sequence current unbalance (%)
-    pub u0_i_ratio_pct: f32,   // Zero sequence current unbalance (%)
+    pub i0_zero_seq: f32,    // Zero sequence current magnitude (A)
+    pub i1_pos_seq: f32,     // Positive sequence current magnitude (A)
+    pub i2_neg_seq: f32,     // Negative sequence current magnitude (A)
+    pub u2_i_ratio_pct: f32, // Negative sequence current unbalance (%)
+    pub u0_i_ratio_pct: f32, // Zero sequence current unbalance (%)
 }
 
 /// Fortescue operator a = e^(j·120°)
@@ -30,13 +30,15 @@ fn fortescue_ops() -> (Complex<f32>, Complex<f32>) {
 }
 
 /// Compute symmetrical components (zero, positive, negative) from three phasors.
-fn symmetrical_components(pa: Complex<f32>, pb: Complex<f32>, pc: Complex<f32>)
-    -> (Complex<f32>, Complex<f32>, Complex<f32>)
-{
+fn symmetrical_components(
+    pa: Complex<f32>,
+    pb: Complex<f32>,
+    pc: Complex<f32>,
+) -> (Complex<f32>, Complex<f32>, Complex<f32>) {
     let (a, a_sq) = fortescue_ops();
     let zero = (pa + pb + pc) / 3.0;
-    let pos  = (pa + a * pb + a_sq * pc) / 3.0;
-    let neg  = (pa + a_sq * pb + a * pc) / 3.0;
+    let pos = (pa + a * pb + a_sq * pc) / 3.0;
+    let neg = (pa + a_sq * pb + a * pc) / 3.0;
     (zero, pos, neg)
 }
 
@@ -50,10 +52,7 @@ fn symmetrical_components(pa: Complex<f32>, pb: Complex<f32>, pc: Complex<f32>)
 /// # Returns
 ///
 /// An `UnbalanceMetrics` struct populated with the voltage symmetrical components and ratios.
-pub fn calculate_voltage_unbalance(
-    v_rms: &[f32; 3],
-    v_angles_deg: &[f32; 3],
-) -> UnbalanceMetrics {
+pub fn calculate_voltage_unbalance(v_rms: &[f32; 3], v_angles_deg: &[f32; 3]) -> UnbalanceMetrics {
     if v_rms[0] <= 0.0 && v_rms[1] <= 0.0 && v_rms[2] <= 0.0 {
         return UnbalanceMetrics::default();
     }
@@ -91,10 +90,7 @@ pub fn calculate_voltage_unbalance(
 /// # Returns
 ///
 /// An `UnbalanceMetrics` struct populated with the current symmetrical components and ratios.
-pub fn calculate_current_unbalance(
-    i_rms: &[f32; 3],
-    i_angles_deg: &[f32; 3],
-) -> UnbalanceMetrics {
+pub fn calculate_current_unbalance(i_rms: &[f32; 3], i_angles_deg: &[f32; 3]) -> UnbalanceMetrics {
     if i_rms[0] <= 0.0 && i_rms[1] <= 0.0 && i_rms[2] <= 0.0 {
         return UnbalanceMetrics::default();
     }

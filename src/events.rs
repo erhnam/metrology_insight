@@ -128,7 +128,8 @@ impl PowerQualityEventDetector {
                 // Event finished
                 self.active_event.is_active = false;
                 if now_ns >= self.active_event.start_timestamp_ns {
-                    self.active_event.duration_ms = (now_ns - self.active_event.start_timestamp_ns) as f32 / 1_000_000.0;
+                    self.active_event.duration_ms =
+                        (now_ns - self.active_event.start_timestamp_ns) as f32 / 1_000_000.0;
                 }
                 self.last_completed_event = self.active_event;
                 self.active_event = PqEventRecord::default();
@@ -145,7 +146,8 @@ impl PowerQualityEventDetector {
                     _ => {}
                 }
                 if now_ns >= self.active_event.start_timestamp_ns {
-                    self.active_event.duration_ms = (now_ns - self.active_event.start_timestamp_ns) as f32 / 1_000_000.0;
+                    self.active_event.duration_ms =
+                        (now_ns - self.active_event.start_timestamp_ns) as f32 / 1_000_000.0;
                 }
             }
         } else {
@@ -185,11 +187,15 @@ mod tests {
         let config = PqEventConfig::default(); // 230.0 V, Dip < 207 V
 
         // Normal 230 V
-        assert!(detector.process_half_cycle(0, 230.0, 1_000_000_000, &config).is_none());
+        assert!(detector
+            .process_half_cycle(0, 230.0, 1_000_000_000, &config)
+            .is_none());
         assert!(!detector.active_event.is_active);
 
         // Dip occurs: 180 V (< 207 V)
-        assert!(detector.process_half_cycle(0, 180.0, 1_010_000_000, &config).is_none());
+        assert!(detector
+            .process_half_cycle(0, 180.0, 1_010_000_000, &config)
+            .is_none());
         assert!(detector.active_event.is_active);
         assert_eq!(detector.active_event.event_type, PqEventType::Dip);
         assert_eq!(detector.dip_count, 1);
@@ -210,10 +216,14 @@ mod tests {
         let config = PqEventConfig::default(); // 230.0 V, Swell > 253 V
 
         // Normal
-        assert!(detector.process_half_cycle(0, 230.0, 1_000_000_000, &config).is_none());
+        assert!(detector
+            .process_half_cycle(0, 230.0, 1_000_000_000, &config)
+            .is_none());
 
         // Swell occurs: 270 V (> 253 V)
-        assert!(detector.process_half_cycle(0, 270.0, 1_010_000_000, &config).is_none());
+        assert!(detector
+            .process_half_cycle(0, 270.0, 1_010_000_000, &config)
+            .is_none());
         assert!(detector.active_event.is_active);
         assert_eq!(detector.active_event.event_type, PqEventType::Swell);
         assert_eq!(detector.swell_count, 1);

@@ -61,10 +61,26 @@ pub fn phase_pairs_for_mode(mode: crate::types::SystemMode) -> &'static [PhasePa
 }
 
 static DEFAULT_PAIRS: [PhasePair; 4] = [
-    PhasePair { voltage_channel: 0, current_channel: 1, phase: Phase::A },
-    PhasePair { voltage_channel: 2, current_channel: 3, phase: Phase::B },
-    PhasePair { voltage_channel: 4, current_channel: 5, phase: Phase::C },
-    PhasePair { voltage_channel: 7, current_channel: 6, phase: Phase::Neutral },
+    PhasePair {
+        voltage_channel: 0,
+        current_channel: 1,
+        phase: Phase::A,
+    },
+    PhasePair {
+        voltage_channel: 2,
+        current_channel: 3,
+        phase: Phase::B,
+    },
+    PhasePair {
+        voltage_channel: 4,
+        current_channel: 5,
+        phase: Phase::C,
+    },
+    PhasePair {
+        voltage_channel: 7,
+        current_channel: 6,
+        phase: Phase::Neutral,
+    },
 ];
 
 /// Signal polarity inversion flags for a phase pair.

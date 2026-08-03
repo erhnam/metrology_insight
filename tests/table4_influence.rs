@@ -20,7 +20,9 @@ const MIN_CYCLES: u32 = 1000;
 ///
 /// The absolute percent error of the baseline accuracy test.
 fn reference_error() -> f64 {
-    run_accuracy_test(UN_V, IN_A, 1.0, FN_HZ, MIN_CYCLES).error_pct.abs()
+    run_accuracy_test(UN_V, IN_A, 1.0, FN_HZ, MIN_CYCLES)
+        .error_pct
+        .abs()
 }
 
 /// Computes the additional error of a measurement condition over the reference.
@@ -40,7 +42,11 @@ fn reference_error() -> f64 {
 /// error).
 fn additional_error(v: f32, i: f32, pf: f32, freq: f32, cycles: u32, ref_err: f64) -> f64 {
     let err = run_accuracy_test(v, i, pf, freq, cycles).error_pct.abs();
-    if err > ref_err { err - ref_err } else { 0.0 }
+    if err > ref_err {
+        err - ref_err
+    } else {
+        0.0
+    }
 }
 
 /// Asserts that the additional error of a measurement condition stays under
@@ -64,7 +70,10 @@ fn check_add(v: f32, i: f32, pf: f32, freq: f32, limit: f64, label: &str) {
     assert!(
         add < limit,
         "FAIL [{}]: additional error = {:.4}%, limit = ±{:.2}%, ref_error = {:.4}%",
-        label, add, limit, ref_err
+        label,
+        add,
+        limit,
+        ref_err
     );
 }
 
@@ -91,7 +100,10 @@ where
     assert!(
         add < limit,
         "FAIL [{}]: additional error = {:.4}%, limit = ±{:.2}%, ref_error = {:.4}%",
-        label, add, limit, ref_err
+        label,
+        add,
+        limit,
+        ref_err
     );
 }
 
@@ -153,10 +165,12 @@ fn frequency_51hz() {
 /// The percent error of the energy measured with harmonic current.
 fn run_harmonic_test() -> f64 {
     let fs = 8000.0;
-    let mut cfg = metrology_insight::MetrologyInsightConfig::default();
-    cfg.adc_samples_seconds = fs;
-    cfg.adc_samples_per_cycle = (fs / FN_HZ) as f64;
-    cfg.nominal_freq = FN_HZ;
+    let cfg = metrology_insight::MetrologyInsightConfig {
+        adc_samples_seconds: fs,
+        adc_samples_per_cycle: (fs / FN_HZ) as f64,
+        nominal_freq: FN_HZ,
+        ..Default::default()
+    };
     let mut insight = metrology_insight::MetrologyInsight::new(cfg);
     let dt_s = 1.0 / FN_HZ;
     let time_s = dt_s as f64 * MIN_CYCLES as f64;
@@ -191,7 +205,7 @@ fn run_harmonic_test() -> f64 {
 #[test]
 fn harmonics_current() {
     check_add_custom(
-        || run_harmonic_test(),
+        run_harmonic_test,
         0.8,
         "I with harmonics (3rd=20%, 5th=10%, 7th=5%), PF=1.0",
     );
@@ -207,10 +221,12 @@ fn harmonics_current() {
 /// The percent error of the energy measured with half-wave current.
 fn run_half_wave_test() -> f64 {
     let fs = 8000.0;
-    let mut cfg = metrology_insight::MetrologyInsightConfig::default();
-    cfg.adc_samples_seconds = fs;
-    cfg.adc_samples_per_cycle = (fs / FN_HZ) as f64;
-    cfg.nominal_freq = FN_HZ;
+    let cfg = metrology_insight::MetrologyInsightConfig {
+        adc_samples_seconds: fs,
+        adc_samples_per_cycle: (fs / FN_HZ) as f64,
+        nominal_freq: FN_HZ,
+        ..Default::default()
+    };
     let mut insight = metrology_insight::MetrologyInsight::new(cfg);
     let dt_s = 1.0 / FN_HZ;
     let time_s = dt_s as f64 * MIN_CYCLES as f64;
@@ -246,7 +262,7 @@ fn run_half_wave_test() -> f64 {
 #[test]
 fn half_wave_dc_component() {
     check_add_custom(
-        || run_half_wave_test(),
+        run_half_wave_test,
         1.0,
         "Half-wave I (DC component), Un, fn, PF=1.0",
     );
@@ -263,12 +279,20 @@ fn half_wave_dc_component() {
 #[test]
 fn phase_rotation_inverted() {
     // Reference: balanced 3-phase
-    let bal = PhaseTestPoint { v_rms: UN_V, i_rms: IN_A, pf: 1.0 };
-    let ref_3ph = run_polyphase_accuracy_test([bal, bal, bal], FN_HZ, MIN_CYCLES).error_pct.abs();
+    let bal = PhaseTestPoint {
+        v_rms: UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
+    let ref_3ph = run_polyphase_accuracy_test([bal, bal, bal], FN_HZ, MIN_CYCLES)
+        .error_pct
+        .abs();
 
     // Inverted rotation: same balanced signals — phase rotation doesn't affect
     // per-phase energy summation. Additional error should be ≤ 0.2%.
-    let inv = run_polyphase_accuracy_test([bal, bal, bal], FN_HZ, MIN_CYCLES).error_pct.abs();
+    let inv = run_polyphase_accuracy_test([bal, bal, bal], FN_HZ, MIN_CYCLES)
+        .error_pct
+        .abs();
 
     let add = if inv > ref_3ph { inv - ref_3ph } else { 0.0 };
     assert!(
@@ -288,15 +312,31 @@ fn phase_rotation_inverted() {
 /// Panics if the additional error exceeds 0.5%.
 #[test]
 fn voltage_unbalance() {
-    let balanced = PhaseTestPoint { v_rms: UN_V, i_rms: IN_A, pf: 1.0 };
+    let balanced = PhaseTestPoint {
+        v_rms: UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
     let ref_3ph = run_polyphase_accuracy_test([balanced, balanced, balanced], FN_HZ, MIN_CYCLES)
         .error_pct
         .abs();
 
     // Unbalanced: L1=Un, L2=0.95Un, L3=1.05Un
-    let ph0 = PhaseTestPoint { v_rms: UN_V, i_rms: IN_A, pf: 1.0 };
-    let ph1 = PhaseTestPoint { v_rms: 0.95 * UN_V, i_rms: IN_A, pf: 1.0 };
-    let ph2 = PhaseTestPoint { v_rms: 1.05 * UN_V, i_rms: IN_A, pf: 1.0 };
+    let ph0 = PhaseTestPoint {
+        v_rms: UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
+    let ph1 = PhaseTestPoint {
+        v_rms: 0.95 * UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
+    let ph2 = PhaseTestPoint {
+        v_rms: 1.05 * UN_V,
+        i_rms: IN_A,
+        pf: 1.0,
+    };
     let unb = run_polyphase_accuracy_test([ph0, ph1, ph2], FN_HZ, MIN_CYCLES)
         .error_pct
         .abs();

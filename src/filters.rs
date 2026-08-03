@@ -32,7 +32,16 @@ impl<const N: usize> MovingAverage<N> {
             sum: 0.0,
         }
     }
+}
 
+impl<const N: usize> Default for MovingAverage<N> {
+    /// Returns a `MovingAverage` initialised to zero via [`new`](MovingAverage::new).
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const N: usize> MovingAverage<N> {
     /// Push a new sample and return the current moving average.
     ///
     /// Until the buffer is filled (`N` samples), the average is

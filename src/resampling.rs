@@ -41,14 +41,14 @@ pub fn resample_synchronous_into(
     let step = input.len() as f32 / target_points as f32;
     let phase_offset = phase_delay_us * 1e-6 * input.len() as f32 / (target_points as f32);
 
-    for i in 0..n {
+    for (i, out) in output[..n].iter_mut().enumerate() {
         let pos = (i as f32 * step) + phase_offset;
-        let idx0 = pos.floor() as usize;
+        let idx0 = crate::math::floor(pos) as usize;
         let idx1 = (idx0 + 1).min(input.len() - 1);
         let frac = pos - idx0 as f32;
         let y0 = input[idx0];
         let y1 = input[idx1];
-        output[i] = y0 + (y1 - y0) * frac;
+        *out = y0 + (y1 - y0) * frac;
     }
     n
 }
@@ -77,7 +77,15 @@ pub fn resample_synchronous(
     phase_delay_us: f32,
 ) -> alloc::vec::Vec<f32> {
     let mut output = alloc::vec![0.0; target_points];
-    let written = resample_synchronous_into(input, fs, freq_est, num_cycles, target_points, phase_delay_us, &mut output);
+    let written = resample_synchronous_into(
+        input,
+        fs,
+        freq_est,
+        num_cycles,
+        target_points,
+        phase_delay_us,
+        &mut output,
+    );
     output.truncate(written);
     output
 }

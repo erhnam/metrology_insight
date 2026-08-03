@@ -2,7 +2,7 @@
 name = "metrology_insight"
 version = "0.1.0"
 edition = "2021"
-description = "High-performance, embedded-first electrical metrology DSP library in Rust. Compliant with IEC 61000-4-30:2021 Class S and IEC 62053-21, fully no_std + alloc compatible."
+description = "Embedded-first electrical metrology DSP library in Rust. Pre-compliance implementation of measurement algorithms derived from IEC 61000-4-30:2021 Class S and IEC 62053-21, fully no_std + alloc compatible."
 license = "Apache-2.0"
 repository = "https://github.com/erhnam/metrology_insight"
 documentation = "https://docs.rs/metrology_insight"
@@ -20,7 +20,8 @@ alloc = []
 libm = "0.2"
 log = "0.4.33"
 microfft = "0.6.0"
-num-complex = "0.4.6"
+num-complex = { version = "0.4.6", default-features = false, features = ["libm"] }
+num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
 rand = { version = "0.10.2", default-features = false, optional = true }
 realfft = { version = "3.5.0", optional = true }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }

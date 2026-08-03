@@ -50,7 +50,9 @@ enum RvcState {
 
 impl Default for RvcState {
     /// Returns the initial `RvcState` (`Init`).
-    fn default() -> Self { RvcState::Init }
+    fn default() -> Self {
+        RvcState::Init
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -204,7 +206,8 @@ impl RvcDetector {
 
             RvcState::Active => {
                 // Track max deviation
-                let dev_pct = (((urms_half - self.pre_event_mean) / self.pre_event_mean).abs()) * 100.0;
+                let dev_pct =
+                    (((urms_half - self.pre_event_mean) / self.pre_event_mean).abs()) * 100.0;
                 if dev_pct > self.max_delta_abs_pct {
                     self.max_delta_abs_pct = dev_pct;
                     self.active_rvc.delta_u_max_pct = dev_pct;
@@ -215,10 +218,12 @@ impl RvcDetector {
                     // Need window_size stable half-cycles before declaring end
                     if self.stable_since_halfcycles >= WINDOW_SIZE as u16 {
                         // Event ended — end timestamp = now - window_size/2 half-cycles
-                        let end_ns = now_ns.saturating_sub((WINDOW_SIZE as u64 / 2) * half_cycle_ns);
+                        let end_ns =
+                            now_ns.saturating_sub((WINDOW_SIZE as u64 / 2) * half_cycle_ns);
                         self.active_rvc.end_timestamp_ns = end_ns;
                         if end_ns > self.active_rvc.start_timestamp_ns {
-                            self.active_rvc.duration_ms = (end_ns - self.active_rvc.start_timestamp_ns) as f32 / 1_000_000.0;
+                            self.active_rvc.duration_ms =
+                                (end_ns - self.active_rvc.start_timestamp_ns) as f32 / 1_000_000.0;
                         }
                         self.active_rvc.post_event_u = mean;
                         self.active_rvc.delta_u_ss_pct =
