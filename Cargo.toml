@@ -1,0 +1,28 @@
+[package]
+name = "metrology_insight"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance, embedded-first electrical metrology DSP library in Rust. Compliant with IEC 61000-4-30:2021 Class S and IEC 62053-21, fully no_std + alloc compatible."
+license = "Apache-2.0"
+license-file = "LICENSE.md"
+repository = "https://github.com/erhnam/metrology_insight"
+documentation = "https://docs.rs/metrology_insight"
+readme = "README.md"
+keywords = ["metrology", "power-quality", "dsp", "iec-61000-4-30", "no-std", "embedded"]
+categories = ["embedded", "science", "no-std"]
+exclude = ["docs/*.pdf", "docs/API_REFERENCE_ES.md", "scratch_*.py", "generate.py"]
+
+[features]
+default = ["std"]
+std = ["realfft", "rand", "rand/std_rng", "rand/thread_rng", "rand/std", "alloc"]
+alloc = []
+
+[dependencies]
+libm = "0.2"
+log = "0.4.33"
+microfft = "0.6.0"
+num-complex = "0.4.6"
+rand = { version = "0.10.2", default-features = false, optional = true }
+realfft = { version = "3.5.0", optional = true }
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+heapless = { version = "0.9.3", default-features = false, features = ["serde"] }

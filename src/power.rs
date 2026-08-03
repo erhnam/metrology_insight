@@ -1,0 +1,150 @@
+//! Power metrics computation (real, reactive, apparent and power factor).
+//!
+// Copyright © 2026 Francisco Arcos.
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::{MetrologyInsightSignal, MetrologyInsightSocket, PowerMetrics};
+
+#[allow(dead_code)]
+
+/// Compute real power from RMS voltage, RMS current, and power factor.
+///
+/// # Arguments
+///
+/// * `voltage_rms` — RMS voltage in volts.
+/// * `current_rms` — RMS current in amperes.
+/// * `power_factor` — Power factor (cos φ).
+///
+/// # Returns
+///
+/// The product `voltage × current × power factor` in watts.
+fn real_power_from_rms_and_power_factor(voltage_rms: f32, current_rms: f32, power_factor: f32) -> f32 {
+    voltage_rms * current_rms * power_factor
+}
+
+/// Compute real power as the average of the instantaneous voltage–current product.
+///
+/// # Arguments
+///
+/// * `signal_v` — Voltage samples.
+/// * `signal_i` — Current samples.
+///
+/// # Returns
+///
+/// The average instantaneous power, or 0.0 when the signals are empty or have
+/// different lengths.
+fn real_power_from_signals(signal_v: &[f32], signal_i: &[f32]) -> f32 {
+    if signal_v.is_empty() || signal_v.len() != signal_i.len() {
+        return 0.0;
+    }
+    signal_v.iter().zip(signal_i.iter()).map(|(&v, &i)| v * i).sum::<f32>() / signal_v.len() as f32
+}
+
+/// Compute reactive power from apparent power and the current-to-voltage angle.
+///
+/// # Arguments
+///
+/// * `apparent_power` — Apparent power in volt-amperes.
+/// * `c2v_angle_deg` — Current-to-voltage phase angle in degrees.
+///
+/// # Returns
+///
+/// Apparent power multiplied by the sine of the phase angle, in VAR.
+fn reactive_power_from_angle(apparent_power: f32, c2v_angle_deg: f32) -> f32 {
+    apparent_power * (c2v_angle_deg.to_radians()).sin()
+}
+
+/// Compute apparent power as the product of RMS voltage and RMS current.
+///
+/// # Arguments
+///
+/// * `voltage_rms` — RMS voltage in volts.
+/// * `current_rms` — RMS current in amperes.
+///
+/// # Returns
+///
+/// The apparent power in volt-amperes.
+fn apparent_power_from_rms(voltage_rms: f32, current_rms: f32) -> f32 {
+    voltage_rms * current_rms
+}
+
+/// Compute the power factor as the ratio of real to apparent power.
+///
+/// # Arguments
+///
+/// * `apparent_power` — Apparent power in volt-amperes.
+/// * `real_power` — Real power in watts.
+///
+/// # Returns
+///
+/// The power factor clamped to the range [-1.0, 1.0], or 0.0 when the apparent
+/// power is zero.
+fn power_factor_from_apparent_and_real(apparent_power: f32, real_power: f32) -> f32 {
+    if apparent_power.abs() > 0.0 {
+        (real_power / apparent_power).clamp(-1.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+/// Calculate all power metrics (real, reactive, apparent, and power factor) for
+/// a single phase.
+///
+/// # Arguments
+///
+/// * `voltage_signal` — Mutable voltage signal used to read the real-wave slice.
+/// * `current_signal` — Mutable current signal used to read the real-wave slice.
+/// * `c2v_angle` — Current-to-voltage phase angle in degrees.
+///
+/// # Returns
+///
+/// A [`PowerMetrics`] struct containing the computed power values.
+fn calculate_all_power_metrics(
+    voltage_signal: &mut MetrologyInsightSignal,
+    current_signal: &mut MetrologyInsightSignal,
+    c2v_angle: f32,
+) -> PowerMetrics {
+    let real_power = real_power_from_signals(voltage_signal.real_wave_slice(), current_signal.real_wave_slice());
+
+    let apparent_power = apparent_power_from_rms(voltage_signal.rms, current_signal.rms);
+
+    let reactive_power = reactive_power_from_angle(apparent_power, c2v_angle);
+
+    let power_factor_calc = power_factor_from_apparent_and_real(apparent_power, real_power);
+
+    PowerMetrics {
+        real_power,
+        reactive_power,
+        apparent_power,
+        power_factor: power_factor_calc,
+    }
+}
+
+/// Update the per-phase and total power metrics across all active phases.
+///
+/// # Arguments
+///
+/// * `socket` — Mutable metrology socket whose phase and total power metrics are updated.
+/// * `active_phases` — Number of active phases to process.
+pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: usize) {
+    for i in 0..active_phases {
+        let c2v_angle = socket.phases[i].phase_angles.c2v_angle;
+        socket.phases[i].power_metrics = calculate_all_power_metrics(&mut socket.phases[i].voltage, &mut socket.phases[i].current, c2v_angle);
+    }
+
+    let mut total_real: f32 = 0.0;
+    let mut total_react: f32 = 0.0;
+    for i in 0..active_phases {
+        total_real += socket.phases[i].power_metrics.real_power;
+        total_react += socket.phases[i].power_metrics.reactive_power;
+    }
+    let total_apparent = libm::sqrtf(total_real * total_real + total_react * total_react);
+    let total_pf = if total_apparent > 0.0 { total_real / total_apparent } else { 0.0 };
+
+    socket.power_metrics_total = PowerMetrics {
+        real_power: total_real,
+        reactive_power: total_react,
+        apparent_power: total_apparent,
+        power_factor: total_pf.clamp(-1.0, 1.0),
+    };
+}
