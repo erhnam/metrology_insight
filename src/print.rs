@@ -206,7 +206,7 @@ pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
     );
     log::info!(
         "  Inductive Energy: {:.3} kWh",
-        &data.energy_metrics.reactive.inductive
+        data.energy_metrics.reactive.inductive
     );
     log::info!(
         "  Balance: {:.3} kWh\n",
