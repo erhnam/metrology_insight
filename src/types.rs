@@ -661,6 +661,7 @@ pub struct PowerMetrics {
     pub reactive_power: f32,
     pub apparent_power: f32,
     pub power_factor: f32,
+    pub displacement_pf: f32,
 }
 
 /// Active energy imported/exported, split into four quadrants.

@@ -173,15 +173,15 @@ fn expected_values() -> Expected {
                 .sum::<f32>());
     let p_real = sum_vkik * PHI.cos();
     let s_app = v_total * i_total;
-    let q_ideal = s_app * PHI.sin();
+    let q_ideal = p_real * PHI.tan();
     let pf = p_real / s_app;
 
-    // Phase angles (deg)
+    // Phase angles (deg) in ABC sequence, current lagging by 18.2° (inductive)
     let ang_v = [0.0, 240.0, 120.0];
     let ang_i = [
-        (0.0 + IPHASE_DEG.abs()) % 360.0,
-        (240.0 + IPHASE_DEG.abs()) % 360.0,
-        (120.0 + IPHASE_DEG.abs()) % 360.0,
+        (360.0 + IPHASE_DEG) % 360.0,
+        (240.0 + IPHASE_DEG) % 360.0,
+        (120.0 + IPHASE_DEG) % 360.0,
     ];
 
     // Harmonics H1..H50 (%)
@@ -394,12 +394,12 @@ fn simulated_realtime_three_phase_balanced() {
             "W",
         );
         let q_expected =
-            ph.power_metrics.apparent_power * (ph.phase_angles.c2v_angle.to_radians()).sin();
+            ph.power_metrics.real_power * (ph.phase_angles.c2v_angle.to_radians()).tan();
         eval.check(
             &format!("ph{i}.q_var"),
             q_expected,
             ph.power_metrics.reactive_power,
-            ph.power_metrics.apparent_power * 0.05,
+            exp.q_ideal * 0.05,
             "VAR",
         );
         eval.check(

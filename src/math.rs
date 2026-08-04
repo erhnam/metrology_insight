@@ -19,6 +19,42 @@ pub fn sin(x: f32) -> f32 {
     }
 }
 
+/// Cosine of an f32 value in radians.
+pub fn cos(x: f32) -> f32 {
+    #[cfg(feature = "std")]
+    {
+        x.cos()
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        libm::cosf(x)
+    }
+}
+
+/// Tangent of an f32 value in radians.
+pub fn tan(x: f32) -> f32 {
+    #[cfg(feature = "std")]
+    {
+        x.tan()
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        libm::tanf(x)
+    }
+}
+
+/// Four-quadrant arctangent of y and x in radians.
+pub fn atan2(y: f32, x: f32) -> f32 {
+    #[cfg(feature = "std")]
+    {
+        y.atan2(x)
+    }
+    #[cfg(not(feature = "std"))]
+    {
+        libm::atan2f(y, x)
+    }
+}
+
 /// Square root of an f32 value.
 pub fn sqrt(x: f32) -> f32 {
     #[cfg(feature = "std")]

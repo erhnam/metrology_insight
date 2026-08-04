@@ -48,18 +48,15 @@ fn real_power_from_signals(signal_v: &[f32], signal_i: &[f32]) -> f32 {
         / signal_v.len() as f32
 }
 
-/// Compute reactive power from apparent power and the current-to-voltage angle.
-///
-/// # Arguments
-///
-/// * `apparent_power` — Apparent power in volt-amperes.
-/// * `c2v_angle_deg` — Current-to-voltage phase angle in degrees.
-///
-/// # Returns
-///
-/// Apparent power multiplied by the sine of the phase angle, in VAR.
-fn reactive_power_from_angle(apparent_power: f32, c2v_angle_deg: f32) -> f32 {
-    apparent_power * crate::math::sin(c2v_angle_deg.to_radians())
+fn reactive_power_from_angle(real_power: f32, apparent_power: f32, c2v_angle_deg: f32) -> f32 {
+    let q_from_p = real_power * crate::math::tan(c2v_angle_deg.to_radians());
+    // To handle potential division by zero or extreme values near 90 degrees,
+    // bound the calculated Q by the apparent power.
+    if q_from_p.abs() > apparent_power {
+        apparent_power * c2v_angle_deg.signum()
+    } else {
+        q_from_p
+    }
 }
 
 /// Compute apparent power as the product of RMS voltage and RMS current.
@@ -119,15 +116,17 @@ fn calculate_all_power_metrics(
 
     let apparent_power = apparent_power_from_rms(voltage_signal.rms, current_signal.rms);
 
-    let reactive_power = reactive_power_from_angle(apparent_power, c2v_angle);
+    let reactive_power = reactive_power_from_angle(real_power, apparent_power, c2v_angle);
 
     let power_factor_calc = power_factor_from_apparent_and_real(apparent_power, real_power);
+    let displacement_pf = crate::math::cos(c2v_angle.to_radians());
 
     PowerMetrics {
         real_power,
         reactive_power,
         apparent_power,
         power_factor: power_factor_calc,
+        displacement_pf,
     }
 }
 
@@ -165,5 +164,12 @@ pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: 
         reactive_power: total_react,
         apparent_power: total_apparent,
         power_factor: total_pf.clamp(-1.0, 1.0),
+        displacement_pf: 0.0, // Not typically aggregated simply for total, or can be cos(atan(Q/P))
     };
+    if socket.power_metrics_total.real_power.abs() > 0.0 {
+        socket.power_metrics_total.displacement_pf = crate::math::cos(crate::math::atan2(
+            socket.power_metrics_total.reactive_power,
+            socket.power_metrics_total.real_power,
+        ));
+    }
 }

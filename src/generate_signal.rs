@@ -332,13 +332,13 @@ pub fn generate_signals() -> alloc::vec::Vec<alloc::vec::Vec<i32>> {
     let v_a = gen_one_signal(0.0, v_peak, true, &noise, noise_mean, noise_max);
     let i_a = gen_one_signal(0.0, i_peak, false, &noise, noise_mean, noise_max);
 
-    // L2 / Phase B: Delayed by 120° in time -> Pass +120.0 to the function
-    let v_b = gen_one_signal(120.0, v_peak, true, &noise, noise_mean, noise_max);
-    let i_b = gen_one_signal(120.0, i_peak, false, &noise, noise_mean, noise_max);
+    // L2 / Phase B: Delayed by 120° in time (ABC sequence) -> Pass -120.0
+    let v_b = gen_one_signal(-120.0, v_peak, true, &noise, noise_mean, noise_max);
+    let i_b = gen_one_signal(-120.0, i_peak, false, &noise, noise_mean, noise_max);
 
-    // L3 / Phase C: Delayed by 240° in time -> Pass -120.0 (or 240.0)
-    let v_c = gen_one_signal(-120.0, v_peak, true, &noise, noise_mean, noise_max);
-    let i_c = gen_one_signal(-120.0, i_peak, false, &noise, noise_mean, noise_max);
+    // L3 / Phase C: Advanced by 120° in time -> Pass +120.0
+    let v_c = gen_one_signal(120.0, v_peak, true, &noise, noise_mean, noise_max);
+    let i_c = gen_one_signal(120.0, i_peak, false, &noise, noise_mean, noise_max);
 
     let unused = alloc::vec![0.0; N_SAMPLES];
 

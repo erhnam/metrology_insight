@@ -97,8 +97,12 @@ fn find_first_rising_zero_crossing(signal: &[f32]) -> Option<f32> {
 ///
 /// The equivalent angle in degrees in the range [0, 360).
 fn sample_index_to_angle(sample_index: f32, samples_per_cycle: f32) -> f32 {
-    let angle_deg = (sample_index / samples_per_cycle) * 360.0;
-    angle_deg % 360.0
+    let delay_deg = (sample_index / samples_per_cycle) * 360.0;
+    let mut angle_deg = (360.0 - (delay_deg % 360.0)) % 360.0;
+    if angle_deg >= 359.9 || angle_deg <= 0.001 {
+        angle_deg = 0.0;
+    }
+    angle_deg
 }
 
 /// Computes the absolute zero-crossing phase angles of the voltage and current signals.
@@ -154,18 +158,18 @@ fn all_phase_angles_from_signals(
         freq_est,
     );
 
-    // Signed angle difference: c_angle - v_angle normalized to (-180, +180]
-    let mut c2v_angle = c_angle - v_angle;
+    // Signed angle difference: v_angle - c_angle normalized to (-180, +180]
+    let mut c2v_angle = v_angle - c_angle;
     if c2v_angle > 180.0 {
         c2v_angle -= 360.0;
     } else if c2v_angle <= -180.0 {
         c2v_angle += 360.0;
     }
 
-    let direction = if c2v_angle > PHASE_DIRECTION_DEADBAND_DEG {
-        PhaseDirection::Inductive
-    } else if c2v_angle < -PHASE_DIRECTION_DEADBAND_DEG {
+    let direction = if c2v_angle < -PHASE_DIRECTION_DEADBAND_DEG {
         PhaseDirection::Capacitive
+    } else if c2v_angle > PHASE_DIRECTION_DEADBAND_DEG {
+        PhaseDirection::Inductive
     } else {
         PhaseDirection::InPhase
     };
