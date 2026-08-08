@@ -11,13 +11,11 @@ use core::f32::consts::PI;
 // SIGNAL GENERATOR CONFIGURATION & CONSTANTS
 // =========================================================================
 
-/// Fundamental peak voltage amplitude (Volts). Equivalent to ~230 Vrms.
-/// Peak voltage (~230 Vrms + 1.5% grid overvoltage = ~233.5 Vrms -> 330.2 Vpeak).
-const VPEAK: f32 = 330.2;
+/// Fundamental peak voltage amplitude (Volts). Equivalent to 230.0 Vrms Phase-Neutral (398.37 Vrms Line-Line).
+const VPEAK: f32 = 325.26915;
 
-/// Fundamental peak current amplitude (Amperes). Equivalent to ~70.7 Arms.
-/// Peak current (~45.0 Arms nominal load -> 63.6 Apeak).
-const IPEAK: f32 = 63.6;
+/// Fundamental peak current amplitude (Amperes). Equivalent to 50.0 Arms.
+const IPEAK: f32 = 70.71068;
 
 /// Global current phase shift relative to voltage (in degrees).
 /// 0.0° = Unity Power Factor (PF = 1.0). Negative = Inductive, Positive = Capacitive.
@@ -65,12 +63,12 @@ const N_SAMPLES: usize = 160;
 pub const ADC_FULL_SCALE_COUNTS: f32 = 8388608.0;
 
 /// Voltage input scaling factor to ADC counts (LSB/V).
-/// Derived from: (ADC_FSR_COUNTS / Vref) / (Resistor_Divider_Ratio * PGA_Gain).
-pub const VIN_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / (20.55 * 11.0); // ~30915.2 LSB/V
+/// Derived from: (ADC_FSR_COUNTS / Vref) / VRatio = (8388608 / 1.2) / 410.09 (~17047.016 LSB/V).
+pub const VIN_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / 410.09;
 
 /// Current input scaling factor to ADC counts (LSB/A).
-/// Derived from: (ADC_FSR_COUNTS / Vref) / (CT_Ratio / Burden_Resistor_Ratio).
-pub const AMPS_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / (2000.0 / 100.0); // ~349525.3 LSB/A
+/// Derived from: (ADC_FSR_COUNTS / Vref) / (CT_Ratio / Burden_Resistor_Ratio) = (8388608 / 1.2) / (2000.0 / 100.0) (~349525.33 LSB/A).
+pub const AMPS_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / (2000.0 / 100.0);
 
 // =========================================================================
 // SIMULATION FEATURE SWITCHES

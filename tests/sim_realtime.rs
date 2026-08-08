@@ -25,8 +25,8 @@ use metrology_insight::MAX_SIGNAL_SAMPLES;
 
 const FS: f32 = 8000.0;
 const F: f32 = 49.98;
-const VPEAK: f32 = 330.2;
-const IPEAK: f32 = 63.6;
+const VPEAK: f32 = 325.26915;
+const IPEAK: f32 = 70.71068;
 const IPHASE_DEG: f32 = -18.2; // current lags voltage (inductive)
 const NOISE_IPEAK_PERCENT: f32 = 0.005;
 const NOISE_RANDOM_PERCENT: f32 = 0.001;

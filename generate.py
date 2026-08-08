@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 # SIGNAL GENERATOR CONFIGURATION & CONSTANTS (RUST REPLICATE)
 # =========================================================================
 
-VPEAK = 330.2        # Peak voltage (~233.5 Vrms)
-IPEAK = 63.6         # Peak current (~45.0 Arms)
+VPEAK = 325.26915       # Peak voltage (230.0 Vrms Phase-Neutral -> 398.37 Vrms Line-Line)
+IPEAK = 70.71068        # Peak current (50.0 Arms)
 IPHASE = -18.2       # Inductive phase shift (-18.2 deg -> PF ≈ 0.95)
 SAMPLES_OFFSET = 12.0
 
@@ -21,7 +21,7 @@ N_SAMPLES = 160       # 160 samples per cycle buffer
 
 # ADC Scaling Factors (ADS131M08 24-bit Delta-Sigma)
 ADC_FULL_SCALE_COUNTS = 8388608.0
-VIN_TO_COUNTS = (ADC_FULL_SCALE_COUNTS / 1.2) / (20.55 * 11.0) # ~30915.2 LSB/V
+VIN_TO_COUNTS = (ADC_FULL_SCALE_COUNTS / 1.2) / 410.09 # ~17047.016 LSB/V
 AMPS_TO_COUNTS = (ADC_FULL_SCALE_COUNTS / 1.2) / (2000.0 / 100.0) # ~349525.3 LSB/A
 
 ENABLE_HARMONICS = True
