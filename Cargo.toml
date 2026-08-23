@@ -9,7 +9,7 @@ documentation = "https://docs.rs/metrology_insight"
 readme = "README.md"
 keywords = ["metrology", "power-quality", "dsp", "no-std", "embedded"]
 categories = ["embedded", "science", "no-std"]
-exclude = ["docs/*.pdf", "docs/API_REFERENCE_ES.md", "scratch_*.py", "generate.py"]
+exclude = ["docs/*.pdf", "scratch_*.py", "generate.py"]
 
 [features]
 default = ["std"]
