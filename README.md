@@ -79,6 +79,54 @@ Allocated safely via `Box` on initialization:
 
 ---
 
+## Prerequisites & Building
+
+### 1. Prerequisites
+
+To compile and use `MetrologyInsight`, ensure you have the Rust toolchain installed:
+
+- **Rust Toolchain**: Rust 2021 Edition (stable `1.75+` or Xtensa/ESP32 LLVM toolchains).
+- **Installation**: Install Rust via [rustup](https://rustup.rs/):
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+
+### 2. Standard Build & Test Suite (Host / Desktop OS)
+
+By default (`features = ["std"]`), the crate compiles using `realfft` for host simulations, unit testing, and analytical evaluation:
+
+```bash
+# Clone repository
+git clone https://github.com/erhnam/metrology_insight.git
+cd metrology_insight
+
+# Compile debug target
+cargo build
+
+# Compile optimized release target
+cargo build --release
+
+# Run all unit tests
+cargo test
+
+# Run full real-time analytical simulation test suite with detailed output
+cargo test --test sim_realtime -- --nocapture
+```
+
+### 3. Embedded `no_std` Compilation (Microcontrollers)
+
+For embedded targets (e.g. ESP32-S3, ARM Cortex-M, RISC-V), disable default `std` features and specify `no_std` + `alloc` support:
+
+```bash
+# Add target toolchain if cross-compiling (e.g., ARM Cortex-M4F)
+rustup target add thumbv7em-none-eabihf
+
+# Build for no_std target
+cargo build --target thumbv7em-none-eabihf --no-default-features --features alloc --release
+```
+
+---
+
 ## Quick Start
 
 Add `metrology_insight` to your `Cargo.toml`:
