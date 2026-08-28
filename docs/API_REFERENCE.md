@@ -1329,7 +1329,7 @@ pub struct ChannelBuffer {
 ```
 
 ##### `OscillographyManager` — Lifecycle Manager
-Orchestrates the oscillography channel buffers and the capture state machine (`Idle` $\rightarrow$ `Armed` $\rightarrow$ `Capturing` $\rightarrow$ `Ready`).
+Orchestrates the oscillography channel buffers and the capture state machine (`Idle` → `Armed` → `Capturing` → `Ready`).
 ```rust
 pub struct OscillographyManager {
     pub channels: [ChannelBuffer; MAX_CHANNELS],
