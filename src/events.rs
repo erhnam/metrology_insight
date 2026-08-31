@@ -72,6 +72,9 @@ pub struct PowerQualityEventDetector {
     pub dip_count: u32,
     pub swell_count: u32,
     pub interruption_count: u32,
+    pub pending_type: PqEventType,
+    pub pending_count: u8,
+    pub pending_start_ns: u64,
 }
 
 impl PowerQualityEventDetector {
@@ -115,6 +118,8 @@ impl PowerQualityEventDetector {
         };
 
         if self.active_event.is_active {
+            self.pending_count = 0;
+            self.pending_type = PqEventType::None;
             // Event currently in progress
             let event_type = self.active_event.event_type;
             let ended = match event_type {
@@ -151,24 +156,41 @@ impl PowerQualityEventDetector {
                 }
             }
         } else {
-            // No active event, check if new event starts
+            // No active event, require min 3 half-cycles (30 ms) to activate and reject short switching spikes
+            const MIN_HALF_CYCLES: u8 = 3;
             if current_type != PqEventType::None {
-                self.active_event = PqEventRecord {
-                    event_type: current_type,
-                    phase_index,
-                    start_timestamp_ns: now_ns,
-                    duration_ms: 0.0,
-                    extremum_v: urms_half,
-                    reference_v: u_din,
-                    is_active: true,
-                };
-                self.event_count += 1;
-                match current_type {
-                    PqEventType::Dip => self.dip_count += 1,
-                    PqEventType::Swell => self.swell_count += 1,
-                    PqEventType::Interruption => self.interruption_count += 1,
-                    _ => {}
+                if current_type == self.pending_type {
+                    self.pending_count = self.pending_count.saturating_add(1);
+                } else {
+                    self.pending_type = current_type;
+                    self.pending_count = 1;
+                    self.pending_start_ns = now_ns;
                 }
+
+                if self.pending_count >= MIN_HALF_CYCLES {
+                    self.active_event = PqEventRecord {
+                        event_type: current_type,
+                        phase_index,
+                        start_timestamp_ns: self.pending_start_ns,
+                        duration_ms: 0.0,
+                        extremum_v: urms_half,
+                        reference_v: u_din,
+                        is_active: true,
+                    };
+                    self.pending_count = 0;
+                    self.pending_type = PqEventType::None;
+
+                    self.event_count += 1;
+                    match current_type {
+                        PqEventType::Dip => self.dip_count += 1,
+                        PqEventType::Swell => self.swell_count += 1,
+                        PqEventType::Interruption => self.interruption_count += 1,
+                        _ => {}
+                    }
+                }
+            } else {
+                self.pending_count = 0;
+                self.pending_type = PqEventType::None;
             }
         }
 
