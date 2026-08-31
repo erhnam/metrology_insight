@@ -63,7 +63,7 @@ Pre-compliance status — not certified. See [COMPLIANCE_STATUS.md](./COMPLIANCE
 |----------|--------|-----------|
 | IEC 61000-4-30:2021 Class S | Partial implementation | Quality flags, synchronous resampling, 10-cycle RMS, 10 s frequency, Fortescue unbalance, Dips/Swells/RVC |
 | IEC 62053-21 (2nd Ed.) | Algorithm / pre-compliance | Static meters for AC active energy (Classes 1/2 limits), 4-Quadrant energy metering — simulation only |
-| IEC 61000-4-15 | Algorithm implementation | Flickermeter Blocks 1–4 ($P_{\text{inst}}$ realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
+| IEC 61000-4-15 | Algorithm implementation | Flickermeter Blocks 1–4 (P_inst realtime; P_st / P_lt library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
 | IEC 62053-23 | Algorithm implementation | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
 | EN 50160 | Partial implementation | Quality events: Dip, Swell, Interruption, RVC threshold limits |
 

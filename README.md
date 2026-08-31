@@ -22,9 +22,9 @@ Engineered for microcontrollers (e.g., ESP32-S3 / Xtensa, ARM Cortex-M) with zer
 - **FFT & Harmonics**: 512-point RFFT processing up to the 50th harmonic order + total harmonic distortion (THD-V and THD-I).
 - **Comprehensive Power Metrics**: Active (W), Reactive (VAR), Apparent (VA), and Power Factor (PF) per phase and 3-phase totals.
 - **Bi-Directional 4-Quadrant Energy**: High-resolution `i128` micro-joule (µJ) accumulators for active/reactive energy across Q1–Q4 (IEC 62053-21).
-- **Signed Phase Angles & Direction**: Directional power flow determination (Inductive, Capacitive, In-Phase) with signed phase shift calculations ($\varphi = \theta_I - \theta_V$).
-- **Fortescue Unbalance Ratios**: Symmetrical component analysis (Zero $U_0$ and Negative $U_2$ sequence ratios) for voltage and current.
-- **Flickermeter Implementation**: Implementation of IEC 61000-4-15 Blocks 1–4 via IEC 61000-4-30 §5.3 (SOS Butterworth 35 Hz filter, weighting filter, instantaneous flicker $P_{\text{inst}}$ in realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ classifiers available as library functions — pre-compliance).
+- **Signed Phase Angles & Direction**: Directional power flow determination (Inductive, Capacitive, In-Phase) with signed phase shift calculations (phi = theta_I - theta_V).
+- **Fortescue Unbalance Ratios**: Symmetrical component analysis (Zero U0 and Negative U2 sequence ratios) for voltage and current.
+- **Flickermeter Implementation**: Implementation of IEC 61000-4-15 Blocks 1–4 via IEC 61000-4-30 §5.3 (SOS Butterworth 35 Hz filter, weighting filter, instantaneous flicker P_inst in realtime; P_st / P_lt classifiers available as library functions — pre-compliance).
 - **Power Quality Event Detection**: Automated tracking of Voltage Dips, Swells, Interruptions, and Rapid Voltage Changes (RVC).
 - **IEC Quality Flags**: Real-time diagnostic flags (`PLL_UNSETTLED`, `SYNC_INCONSISTENT`, `OUT_OF_RANGE`, `EVENT_MARKED`).
 - **Hardware-Agnostic**: Works with any ADC front-end (ADS131M08, MCP3913, internal ADCs) by accepting normalized physical values.
@@ -39,7 +39,7 @@ Pre-compliance status — not certified. See [docs/COMPLIANCE_STATUS.md](./docs/
 |----------|--------|------------------------------|
 | **IEC 61000-4-30:2021 Class S** | Partial implementation | Frequency (§5.1), 10-cycle RMS (§5.2), flicker Blocks 1–4 (§5.3), Dips/Swells/Interruptions (§5.4/5.5), Fortescue unbalance (§5.7), harmonics (§5.8, 1-cycle window — gap vs. 10-cycle requirement), interharmonics (§5.9, SBM), RVC (§5.11), quality flags |
 | **IEC 62053-21 (2nd Ed.)** | Algorithm implementation / pre-compliance | Static meters for AC active energy; 4-Quadrant bi-directional energy metering targeting Classes 1/2 limits — verified in software simulation only |
-| **IEC 61000-4-15** | Algorithm implementation | Flickermeter Blocks 1–4 ($P_{\text{inst}}$ realtime; $P_{\text{st}}$ / $P_{\text{lt}}$ library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
+| **IEC 61000-4-15** | Algorithm implementation | Flickermeter Blocks 1–4 (P_inst realtime; P_st / P_lt library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
 | **IEC 62053-23** | Algorithm implementation | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
 ---
 
