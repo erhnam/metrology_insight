@@ -181,11 +181,19 @@ mod tests {
         let apparent = 1000.0;
         // Pure inductive (+90 deg)
         let q_ind = reactive_power_from_angle(0.0, apparent, 90.0);
-        assert!((q_ind - 1000.0).abs() < 1e-3, "Expected 1000 VAR, got {}", q_ind);
+        assert!(
+            (q_ind - 1000.0).abs() < 1e-3,
+            "Expected 1000 VAR, got {}",
+            q_ind
+        );
 
         // Pure capacitive (-90 deg)
         let q_cap = reactive_power_from_angle(0.0, apparent, -90.0);
-        assert!((q_cap - -1000.0).abs() < 1e-3, "Expected -1000 VAR, got {}", q_cap);
+        assert!(
+            (q_cap - -1000.0).abs() < 1e-3,
+            "Expected -1000 VAR, got {}",
+            q_cap
+        );
 
         // In-phase (0 deg)
         let q_zero = reactive_power_from_angle(1000.0, apparent, 0.0);
