@@ -1,6 +1,6 @@
 [package]
 name = "metrology_insight"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Embedded-first electrical metrology DSP library in Rust. Pre-compliance implementation of measurement algorithms derived from IEC 61000-4-30:2021 Class S and IEC 62053-21, fully no_std + alloc compatible."
 license = "Apache-2.0"
