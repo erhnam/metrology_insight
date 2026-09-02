@@ -48,11 +48,12 @@ pub struct PqEventConfig {
     pub swell_threshold_pct: f32,     // Default 110.0%
     pub interrupt_threshold_pct: f32, // Default 10.0%
     pub hysteresis_pct: f32,          // Default 1.0%
+    pub min_half_cycles: u8,          // Default 3 (30 ms debounce duration filter)
 }
 
 impl Default for PqEventConfig {
     /// Returns a `PqEventConfig` with IEC-typical defaults (230.0 V nominal, 90 %/110 %/10 %
-    /// thresholds and 1.0 % hysteresis).
+    /// thresholds, 1.0 % hysteresis and 3 half-cycles debounce).
     fn default() -> Self {
         Self {
             nominal_voltage: 230.0,
@@ -60,6 +61,7 @@ impl Default for PqEventConfig {
             swell_threshold_pct: 110.0,
             interrupt_threshold_pct: 10.0,
             hysteresis_pct: 1.0,
+            min_half_cycles: 3,
         }
     }
 }
@@ -156,8 +158,8 @@ impl PowerQualityEventDetector {
                 }
             }
         } else {
-            // No active event, require min 3 half-cycles (30 ms) to activate and reject short switching spikes
-            const MIN_HALF_CYCLES: u8 = 3;
+            // No active event, require min half-cycles (e.g. 3 half-cycles = 30 ms) to activate and reject short switching spikes
+            let min_half_cycles = config.min_half_cycles.max(1);
             if current_type != PqEventType::None {
                 if current_type == self.pending_type {
                     self.pending_count = self.pending_count.saturating_add(1);
@@ -167,7 +169,7 @@ impl PowerQualityEventDetector {
                     self.pending_start_ns = now_ns;
                 }
 
-                if self.pending_count >= MIN_HALF_CYCLES {
+                if self.pending_count >= min_half_cycles {
                     self.active_event = PqEventRecord {
                         event_type: current_type,
                         phase_index,
@@ -206,7 +208,7 @@ mod tests {
     #[test]
     fn test_dip_detection() {
         let mut detector = PowerQualityEventDetector::default();
-        let config = PqEventConfig::default(); // 230.0 V, Dip < 207 V
+        let config = PqEventConfig::default(); // 230.0 V, Dip < 207 V, min_half_cycles: 3
 
         // Normal 230 V
         assert!(detector
@@ -214,12 +216,27 @@ mod tests {
             .is_none());
         assert!(!detector.active_event.is_active);
 
-        // Dip occurs: 180 V (< 207 V)
+        // Dip occurs: half-cycle 1 (180 V < 207 V) -> pending, not active yet
         assert!(detector
             .process_half_cycle(0, 180.0, 1_010_000_000, &config)
             .is_none());
+        assert!(!detector.active_event.is_active);
+        assert_eq!(detector.pending_count, 1);
+
+        // Dip persists: half-cycle 2 (180 V) -> pending, not active yet
+        assert!(detector
+            .process_half_cycle(0, 180.0, 1_020_000_000, &config)
+            .is_none());
+        assert!(!detector.active_event.is_active);
+        assert_eq!(detector.pending_count, 2);
+
+        // Dip persists: half-cycle 3 (180 V) -> triggers active event!
+        assert!(detector
+            .process_half_cycle(0, 180.0, 1_030_000_000, &config)
+            .is_none());
         assert!(detector.active_event.is_active);
         assert_eq!(detector.active_event.event_type, PqEventType::Dip);
+        assert_eq!(detector.active_event.start_timestamp_ns, 1_010_000_000);
         assert_eq!(detector.dip_count, 1);
 
         // Recovery: 235 V (>= 207 V + 2.3 V hysteresis)
@@ -235,19 +252,34 @@ mod tests {
     #[test]
     fn test_swell_detection() {
         let mut detector = PowerQualityEventDetector::default();
-        let config = PqEventConfig::default(); // 230.0 V, Swell > 253 V
+        let config = PqEventConfig::default(); // 230.0 V, Swell > 253 V, min_half_cycles: 3
 
         // Normal
         assert!(detector
             .process_half_cycle(0, 230.0, 1_000_000_000, &config)
             .is_none());
 
-        // Swell occurs: 270 V (> 253 V)
+        // Swell occurs: half-cycle 1 (270 V > 253 V) -> pending
         assert!(detector
             .process_half_cycle(0, 270.0, 1_010_000_000, &config)
             .is_none());
+        assert!(!detector.active_event.is_active);
+        assert_eq!(detector.pending_count, 1);
+
+        // Swell persists: half-cycle 2 -> pending
+        assert!(detector
+            .process_half_cycle(0, 270.0, 1_020_000_000, &config)
+            .is_none());
+        assert!(!detector.active_event.is_active);
+        assert_eq!(detector.pending_count, 2);
+
+        // Swell persists: half-cycle 3 -> triggers active event!
+        assert!(detector
+            .process_half_cycle(0, 270.0, 1_030_000_000, &config)
+            .is_none());
         assert!(detector.active_event.is_active);
         assert_eq!(detector.active_event.event_type, PqEventType::Swell);
+        assert_eq!(detector.active_event.start_timestamp_ns, 1_010_000_000);
         assert_eq!(detector.swell_count, 1);
 
         // Recovery: 220 V (< 253 V - 2.3 V)

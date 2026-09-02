@@ -53,10 +53,6 @@ fn calculate_signal_power(
         square += sample1 * sample2;
     }
     if d_length != 0.0 && n_length_usize + 1 < signal1.len() && n_length_usize + 1 < signal2.len() {
-        if n_length_usize + 1 >= signal1.len() || n_length_usize + 1 >= signal2.len() {
-            log::info!("Error: signal length is too short for interpolation.");
-            return 0.0;
-        }
         let ysample1 = signal1[n_length_usize]
             + (signal1[n_length_usize + 1] - signal1[n_length_usize]) * d_length;
         let ysample2 = signal2[n_length_usize]

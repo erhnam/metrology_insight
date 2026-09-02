@@ -48,15 +48,13 @@ fn real_power_from_signals(signal_v: &[f32], signal_i: &[f32]) -> f32 {
         / signal_v.len() as f32
 }
 
-fn reactive_power_from_angle(real_power: f32, apparent_power: f32, c2v_angle_deg: f32) -> f32 {
-    let q_from_p = real_power * crate::math::tan(c2v_angle_deg.to_radians());
-    // To handle potential division by zero or extreme values near 90 degrees,
-    // bound the calculated Q by the apparent power.
-    if q_from_p.abs() > apparent_power {
-        apparent_power * c2v_angle_deg.signum()
-    } else {
-        q_from_p
-    }
+/// Compute fundamental reactive power from apparent power and voltage-to-current phase angle (IEEE 1459 / IEC 62053-23).
+///
+/// Q = S * sin(phi)
+///
+/// Robust across all four quadrants and immune to division-by-zero or collapse when real power P is 0.
+fn reactive_power_from_angle(_real_power: f32, apparent_power: f32, c2v_angle_deg: f32) -> f32 {
+    apparent_power * crate::math::sin(c2v_angle_deg.to_radians())
 }
 
 /// Compute apparent power as the product of RMS voltage and RMS current.
@@ -171,5 +169,26 @@ pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: 
             socket.power_metrics_total.reactive_power,
             socket.power_metrics_total.real_power,
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pure_reactive_power() {
+        let apparent = 1000.0;
+        // Pure inductive (+90 deg)
+        let q_ind = reactive_power_from_angle(0.0, apparent, 90.0);
+        assert!((q_ind - 1000.0).abs() < 1e-3, "Expected 1000 VAR, got {}", q_ind);
+
+        // Pure capacitive (-90 deg)
+        let q_cap = reactive_power_from_angle(0.0, apparent, -90.0);
+        assert!((q_cap - -1000.0).abs() < 1e-3, "Expected -1000 VAR, got {}", q_cap);
+
+        // In-phase (0 deg)
+        let q_zero = reactive_power_from_angle(1000.0, apparent, 0.0);
+        assert!(q_zero.abs() < 1e-3, "Expected 0 VAR, got {}", q_zero);
     }
 }
