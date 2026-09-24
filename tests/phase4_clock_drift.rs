@@ -1,7 +1,7 @@
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Phase 4 — Clock Drift Test Bench (§7.11)
+//! Phase 4 — Clock Drift Test Bench
 //!
 //! Simulates the ESP32 crystal drift over a 24-hour period and verifies that
 //! the TimeModel drift correction keeps accumulated error below ±0.5 seconds.

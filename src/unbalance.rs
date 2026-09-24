@@ -15,7 +15,7 @@ pub struct UnbalanceMetrics {
     pub v2_neg_seq: f32,        // Negative sequence voltage magnitude (V)
     pub u2_neg_ratio_pct: f32,  // Negative sequence voltage unbalance u2 (%)
     pub u0_zero_ratio_pct: f32, // Zero sequence voltage unbalance u0 (%)
-    // Current symmetrical components (§5.13.6)
+    // Current symmetrical components
     pub i0_zero_seq: f32,    // Zero sequence current magnitude (A)
     pub i1_pos_seq: f32,     // Positive sequence current magnitude (A)
     pub i2_neg_seq: f32,     // Negative sequence current magnitude (A)
@@ -42,7 +42,7 @@ fn symmetrical_components(
     (zero, pos, neg)
 }
 
-/// Computes voltage unbalance via Fortescue (§5.7).
+/// Computes voltage unbalance via Fortescue.
 ///
 /// An `UnbalanceMetrics` struct populated with the voltage symmetrical components and ratios.
 pub fn calculate_voltage_unbalance(v_rms: &[f32; 3], v_angles_deg: &[f32; 3]) -> UnbalanceMetrics {
@@ -73,7 +73,7 @@ pub fn calculate_voltage_unbalance(v_rms: &[f32; 3], v_angles_deg: &[f32; 3]) ->
     }
 }
 
-/// Computes current unbalance via Fortescue (§5.13.6).
+/// Computes current unbalance via Fortescue.
 ///
 /// An `UnbalanceMetrics` struct populated with the current symmetrical components and ratios.
 pub fn calculate_current_unbalance(i_rms: &[f32; 3], i_angles_deg: &[f32; 3]) -> UnbalanceMetrics {

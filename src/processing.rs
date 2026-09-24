@@ -34,7 +34,7 @@ impl MetrologyInsight {
                     cache,
                 );
 
-                // Interharmonic accumulation (§5.9): push voltage sync buffer each cycle
+                // Interharmonic accumulation: push voltage sync buffer each cycle
                 let phase = &mut self.socket.phases[i];
                 phase.interharm_acc.push_cycle(cache.sync_buffer.as_ref());
                 if phase.interharm_acc.is_ready() {
@@ -162,7 +162,7 @@ impl MetrologyInsight {
             };
             let mut unbalance = crate::unbalance::calculate_voltage_unbalance(&v_rms, &v_angles);
 
-            // Current unbalance (§5.13.6)
+            // Current unbalance
             let i_rms = [
                 self.socket.phases[0].current.rms,
                 self.socket.phases[1].current.rms,

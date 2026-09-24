@@ -1,4 +1,4 @@
-//! Type-test benchmarks: measurement uncertainty and limits (§7.3).
+//! Type-test benchmarks: measurement uncertainty and limits.
 //!
 // Copyright © 2026 Francisco Arcos.
 // SPDX-License-Identifier: Apache-2.0
@@ -10,7 +10,7 @@ const IN_A: f32 = 5.0;
 const FN_HZ: f32 = 50.0;
 const MIN_CYCLES: u32 = 1000;
 
-// ─── 3.1 Measurement uncertainty (§7.3) ───────────────────────────────────────
+// ─── 3.1 Measurement uncertainty ───────────────────────────────────────────────
 
 /// Verifies the expanded measurement uncertainty (k=2) meets the Class 1
 /// limit of 0.33% using Type A (repeated runs) and Type B (component
@@ -51,7 +51,7 @@ fn uncertainty_type_a() {
     );
 }
 
-// ─── 3.2 Meter constant (§7.4) ────────────────────────────────────────────────
+// ─── 3.2 Meter constant ────────────────────────────────────────────────────────
 //
 // The meter constant defines the relationship between accumulated internal energy
 // and output pulses (digital or LED).
@@ -81,7 +81,7 @@ fn meter_constant_scaling() {
     );
 }
 
-// ─── 3.4 No-load condition (§7.6) ─────────────────────────────────────────────
+// ─── 3.4 No-load condition ─────────────────────────────────────────────────────
 
 /// Verifies that no energy is accumulated under no-load conditions
 /// (reference voltage applied, zero current).
@@ -116,7 +116,7 @@ fn noise_below_threshold_no_energy() {
     );
 }
 
-// ─── 3.5 Starting current (§7.7) ──────────────────────────────────────────────
+// ─── 3.5 Starting current ──────────────────────────────────────────────────────
 
 /// Returns the starting current Ist for a Class 1 CT-connected meter.
 ///
@@ -159,7 +159,7 @@ fn below_starting_current_reasonable() {
     );
 }
 
-// ─── 3.6 Repeatability (§7.8) ─────────────────────────────────────────────────
+// ─── 3.6 Repeatability ─────────────────────────────────────────────────────────
 
 /// Verifies measurement repeatability across 10 identical runs, requiring a
 /// standard deviation below 0.2%.
@@ -182,7 +182,7 @@ fn repeatability_10_measurements() {
     );
 }
 
-// ─── 3.7 Rapid current variations (§9.4.12) ───────────────────────────────────
+// ─── 3.7 Rapid current variations ───────────────────────────────────────────────
 
 /// Runs a rapid current step test (low current then high current) and returns
 /// the percent error of measured energy versus the reference.

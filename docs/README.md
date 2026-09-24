@@ -63,7 +63,7 @@ Pre-compliance status — not certified. See [COMPLIANCE_STATUS.md](./COMPLIANCE
 |----------|--------|-----------|
 | IEC 61000-4-30:2021 Class S | Partial implementation | Quality flags, synchronous resampling, 10-cycle RMS, 10 s frequency, Fortescue unbalance, Dips/Swells/RVC |
 | IEC 62053-21 (2nd Ed.) | Algorithm / pre-compliance | Static meters for AC active energy (Classes 1/2 limits), 4-Quadrant energy metering — simulation only |
-| IEC 61000-4-15 | Algorithm implementation | Flickermeter Blocks 1–4 (P_inst realtime; P_st / P_lt library helpers) — incorporated by reference via IEC 61000-4-30 §5.3 |
+| IEC 61000-4-15 | Algorithm implementation | Flickermeter Blocks 1–4 (P_inst realtime; P_st / P_lt library helpers) — incorporated by reference via IEC 61000-4-30  |
 | IEC 62053-23 | Algorithm implementation | Static meters for AC reactive energy (Q1–Q4 quadrant decomposition) |
 | EN 50160 | Partial implementation | Quality events: Dip, Swell, Interruption, RVC threshold limits |
 
@@ -86,7 +86,7 @@ insight.apply_config(); // Propagates to FlickerMeter and other sub-components
 
 | Commit | Change |
 |--------|--------|
-| `6b603ef` | 10 s frequency integration (IEC 61000-4-30 §5.1), fixed initial flicker transient, Fortescue unbalance protection with PLL lock |
+| `6b603ef` | 10 s frequency integration, fixed initial flicker transient, Fortescue unbalance protection with PLL lock |
 | `fcbdd00` | Critical fix capacitive/inductive detection: rising zero-crossing + signed angle (φ = θI − θV). Unit test added. |
 | `2f481c2` | Full refactor: 27 named constants, new structs `FlickerConfig`, `PhaseConfig`, `SignalConfig`; extended `PllConfig` and `RvcConfig`; `apply_config()` and `set_nominal_voltage()` methods |
 | `77165df` | `GridFrequency` propagation → `nominal_freq` + PLL bounds from firmware `Measurements::apply_config()` |

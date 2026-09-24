@@ -139,7 +139,7 @@ pub fn generate_cycle(
     (v, i)
 }
 
-/// Harmonic content per IEC 62053-21 §9.4.4 typical test:
+/// Harmonic content test:
 /// 3rd = 20 %, 5th = 10 %, 7th = 5 % of fundamental.
 const HARMONIC_AMPS: &[(u32, f32)] = &[(3, 0.20), (5, 0.10), (7, 0.05)];
 

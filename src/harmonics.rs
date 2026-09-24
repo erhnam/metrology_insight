@@ -245,7 +245,6 @@ impl FftCache {
 
 /// Incremental Goertzel-based accumulator for 49 interharmonic subgroup magnitudes.
 ///
-/// Per IEC 61000-4-30 §5.9 (Class S: method left to manufacturer's discretion).
 /// Each interharmonic subgroup i (0..49) covers the band between
 /// harmonic (i+1) and (i+2), centered at (i+1.5) × fnominal.
 ///

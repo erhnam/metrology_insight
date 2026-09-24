@@ -123,7 +123,7 @@ pub struct MetrologyInsightConfig {
     pub phase: PhaseConfig,
     // Signal quality and processing thresholds
     pub signal: SignalConfig,
-    // Standard electrical values per IEC 62053-21 §4
+    // Standard electrical nominal values
     pub standard_values: StandardElectricalValues,
 }
 
@@ -231,7 +231,7 @@ impl Default for SignalConfig {
     }
 }
 
-/// Standard electrical values per IEC 62053-21 §4.
+/// Standard electrical nominal values.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StandardElectricalValues {
@@ -719,13 +719,13 @@ pub struct PqAggregationRecord {
     pub freq_10s: f32,
     pub u2_unbalance: f32,
     pub u0_unbalance: f32,
-    // Current unbalance (§5.13.6)
+    // Current unbalance
     pub u2_i_ratio_pct: f32,
     pub u0_i_ratio_pct: f32,
     pub i0_zero_seq: f32,
     pub i1_pos_seq: f32,
     pub i2_neg_seq: f32,
-    // Quality indices — max/min per window (§B.4)
+    // Quality indices — max/min per window
     pub v_rms_min: [f32; 3],
     pub v_rms_max: [f32; 3],
     pub freq_min: f32,
@@ -738,10 +738,10 @@ pub struct PqAggregationRecord {
     // Main harmonics (THD of each phase)
     pub v_thd: [f32; 3],
     pub i_thd: [f32; 3],
-    // Window validity tracking (§4.5.2) — number of clean/total 10/12-cycle windows
+    // Window validity tracking — number of clean/total 10/12-cycle windows
     pub clean_windows: u16,
     pub total_windows: u16,
-    // RVC metrics (§5.11) — max ΔUmax and ΔUss per phase in interval
+    // RVC metrics — max ΔUmax and ΔUss per phase in interval
     pub rvc_delta_u_max_pct: [f32; 3],
     pub rvc_delta_u_ss_pct: [f32; 3],
     // Padding reserved to reach exactly 256 bytes (flash sector alignment)

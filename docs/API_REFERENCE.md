@@ -26,7 +26,7 @@ It provides a complete electrical signal processing pipeline from raw ADC sample
 **Key features:**
 
 - Support for 1 to 4 phases (single-phase, single-phase with neutral, 3-wire three-phase, 4-wire three-phase)
-- High-inertia PLL (Phase-Locked Loop) for accurate frequency tracking (IEC 61000-4-30 §5.1)
+- High-inertia PLL (Phase-Locked Loop) for accurate frequency tracking
 - Synchronous resampling via linear interpolation over 10 cycles (512 points)
 - FFT over 10 synchronous cycles with `realfft` (512 points)
 - Flickermeter IEC 61000-4-15: Blocks 1–4 with IIR filters + weighting, logarithmic histogram for Pst and Plt calculation
@@ -458,7 +458,7 @@ pub struct MetrologyInsightSignal {
     pub calc_freq: bool,                      // Calculate frequency from this signal
     pub peak: f32,                            // Peak value (EWMA)
     pub rms: f32,                             // RMS (EWMA)
-    pub rms_10cycle: f32,                     // 10-cycle RMS (EN 61000-4-30 §5.2)
+    pub rms_10cycle: f32,                     // 10-cycle RMS
     pub cycle_10_sq_sum: f32,                 // 10-cycle RMS accumulator
     pub cycle_10_count: u8,                   // 10-cycle RMS counter
     pub freq_nominal: f32,                    // Nominal frequency (50/60 Hz)
@@ -517,7 +517,7 @@ pub struct PllState {
 }
 ```
 
-**10 s average frequency (IEC 61000-4-30 §5.1):**
+**10 s average frequency:**
 The PLL accumulates `freq_est` sums over `nominal_freq.round()` samples (e.g., 50 per second at 50 Hz). Upon completing 1 second, it stores the average in the circular buffer of 10 slots. `freq_10s` is the average of valid slots.
 
 ```
@@ -650,13 +650,13 @@ pub struct PqAggregationRecord {
     pub freq_10s: f32,
     pub u2_unbalance: f32,
     pub u0_unbalance: f32,
-    // Current unbalance (§5.13.6)
+    // Current unbalance
     pub u2_i_ratio_pct: f32,
     pub u0_i_ratio_pct: f32,
     pub i0_zero_seq: f32,
     pub i1_pos_seq: f32,
     pub i2_neg_seq: f32,
-    // Quality indices — max/min per window (§B.4)
+    // Quality indices — max/min per window
     pub v_rms_min: [f32; 3],
     pub v_rms_max: [f32; 3],
     pub freq_min: f32,
@@ -668,10 +668,10 @@ pub struct PqAggregationRecord {
     pub rvc_count: u32,
     pub v_thd: [f32; 3],
     pub i_thd: [f32; 3],
-    pub clean_windows: u16,          // Clean 10/12-cycle windows (§4.5.2)
+    pub clean_windows: u16,          // Clean 10/12-cycle windows
     pub total_windows: u16,          // Total windows in interval
-    pub rvc_delta_u_max_pct: [f32; 3],  // ΔUmax per phase (§5.11)
-    pub rvc_delta_u_ss_pct: [f32; 3],  // ΔUss per phase (§5.11)
+    pub rvc_delta_u_max_pct: [f32; 3],  // ΔUmax per phase
+    pub rvc_delta_u_ss_pct: [f32; 3],  // ΔUss per phase
     pub padding: [u8; 3],           // Padding for exactly 256 bytes
 }
 
@@ -781,7 +781,7 @@ pub fn process_signal(
 
 ### 4.5 `pll` — Digital Phase-Locked Loop
 
-High-inertia PLL with digital PI + VCO, circular buffer of 10 bins for IEC 61000-4-30 §5.1 compliance (10 s average frequency).
+High-inertia PLL with digital PI + VCO, circular buffer of 10 bins (10 s average frequency).
 
 | Parameter | Default Value | Description |
 |-----------|-------------------|-------------|
@@ -1100,7 +1100,7 @@ impl PowerQualityEventDetector {
 ### 4.15 `rvc` — Rapid Voltage Change (RVC) detector
 
 ```rust
-/// Circular buffer of 120 Urms(½) values for steady-state reference (§5.11)
+/// Circular buffer of 120 Urms(½) values for steady-state reference
 pub struct RvcRecord {
     pub phase_index: u8,
     pub start_timestamp_ns: u64,
@@ -1156,7 +1156,7 @@ pub struct UnbalanceMetrics {
     pub v2_neg_seq: f32,        // Negative sequence voltage magnitude (V)
     pub u2_neg_ratio_pct: f32,  // Negative sequence voltage unbalance u2 (%)
     pub u0_zero_ratio_pct: f32, // Zero sequence voltage unbalance u0 (%)
-    // Current (§5.13.6)
+    // Current
     pub i0_zero_seq: f32,       // Zero sequence current magnitude (A)
     pub i1_pos_seq: f32,        // Positive sequence current magnitude (A)
     pub i2_neg_seq: f32,        // Negative sequence current magnitude (A)

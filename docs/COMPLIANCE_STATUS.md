@@ -13,18 +13,18 @@
 
 ## IEC 61000-4-30:2021 Class S
 
-| Clause | Parameter | Status | Notes / Evidence |
+| Item | Parameter | Status | Notes / Evidence |
 |--------|-----------|--------|------------------|
 | 5.1 | Power frequency | Partial implementation | PLL tracking + 10 s sliding average (`src/pll.rs`); no 10-min aggregation; ±50 mHz accuracy not verified. |
 | 5.2 | Supply voltage magnitude | Partial implementation | 10-cycle RMS (`src/signal.rs:357-364`) and Urms(½) (`src/urms.rs`); 20–120 % Udin range and ±0.5 % accuracy not verified. |
 | 5.3 | Flicker (Pst, Plt) | Partial implementation | IEC 61000-4-15 Blocks 1–4 with P_inst computed in realtime (`src/flicker.rs`); P_st classifier and P_lt helper provided but not wired into the realtime pipeline. |
-| 5.4 | Voltage dips and swells | Partial implementation | Urms(½) detector with IEC-typical thresholds (90 %/110 % + 1 % hysteresis) (`src/events.rs`); no sliding reference Usr (§5.4.4). |
+| 5.4 | Voltage dips and swells | Partial implementation | Urms(½) detector with IEC-typical thresholds (90 %/110 % + 1 % hysteresis) (`src/events.rs`); no sliding reference Usr. |
 | 5.5 | Voltage interruptions | Partial implementation | Detection via Urms(½) < 10 % (`src/events.rs`). |
 | 5.7 | Supply voltage unbalance | Partial implementation | Fortescue symmetrical components u2 + u0 (`src/unbalance.rs`); ±0.3 % accuracy and 1–5 % range not verified. |
 | 5.8 | Voltage harmonics | Partial implementation | 512-point RFFT + THD up to 50th order (`src/harmonics.rs`); uses a **1-cycle** window while IEC 61000-4-7 (Class II) requires **10-cycle** windows; single-bin method (no subgroups). |
 | 5.9 | Voltage interharmonics | Algorithm implementation | 49-band Goertzel accumulator; Class S method is left to the manufacturer (SBM) (`src/harmonics.rs`). |
-| 5.11 | Rapid voltage changes (RVC) | Partial implementation | Urms(½) sliding-window state machine (`src/rvc.rs`); window length is an approximation of the §5.11 method. |
-| 5.13 | Current (incl. current unbalance) | N/R for Class S | RMS, harmonics and current unbalance (§5.13.6) present (`src/unbalance.rs`, `src/voltage_current.rs`). |
+| 5.11 | Rapid voltage changes (RVC) | Partial implementation | Urms(½) sliding-window state machine (`src/rvc.rs`); window length is an approximation of the  method. |
+| 5.13 | Current (incl. current unbalance) | N/R for Class S | RMS, harmonics and current unbalance present (`src/unbalance.rs`, `src/voltage_current.rs`). |
 | 4.6 / 4.7 | Quality flags | Partial implementation | `Q_FLAG_PLL_UNSETTLED`, `Q_FLAG_SYNC_INCONSISTENT`, `Q_FLAG_OUT_OF_RANGE`, `Q_FLAG_EVENT_MARKED` (`src/types.rs:511-515`, `src/signal.rs:335-342`). |
 
 ## IEC 62053-21 (2nd Ed.) — Static Meters for AC Active Energy
@@ -63,9 +63,9 @@
 
 ## Gaps Toward Certification
 
-1. **Harmonics**: switch from a 1-cycle window to 10-cycle windows + subgroup method per IEC 61000-4-7 Class II (§5.8).
-2. **Flicker**: wire P_st (10-min) and P_lt (2-h) accumulation into the realtime pipeline (§5.3).
-3. **Aggregation**: implement 10-min / 2-h time aggregation per §4.5 for Class S quantities.
+1. **Harmonics**: switch from a 1-cycle window to 10-cycle windows + subgroup method per IEC 61000-4-7 Class II.
+2. **Flicker**: wire P_st (10-min) and P_lt (2-h) accumulation into the realtime pipeline.
+3. **Aggregation**: implement 10-min / 2-h time aggregation for Class S quantities.
 4. **Accuracy verification**: validate against normative limits (frequency ±50 mHz, voltage ±0.5 % over 20–120 % Udin, flicker 0.4–4.0 Pst, unbalance ±0.3 %, harmonics range).
 5. **Hardware validation**: test against a reference meter (class 0.05 or better) on a controlled bench (temperature, reference conditions) per IEC 62053-21 test procedures.
 

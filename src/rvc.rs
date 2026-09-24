@@ -57,7 +57,7 @@ impl Default for RvcState {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RvcDetector {
-    // Circular buffer for Urms(½) window (§5.11)
+    // Circular buffer for Urms(½) window
     urms_buffer: [f32; WINDOW_SIZE],
     buffer_sum: f32,
     buffer_count: u8,
