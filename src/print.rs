@@ -225,7 +225,10 @@ pub fn print_events(data: &MetrologyInsightSocket, active: usize) {
     let phases = &data.phases[..active.min(3)];
     let dip: u32 = phases.iter().map(|p| p.event_detector.dip_count).sum();
     let swell: u32 = phases.iter().map(|p| p.event_detector.swell_count).sum();
-    let interrupt: u32 = phases.iter().map(|p| p.event_detector.interruption_count).sum();
+    let interrupt: u32 = phases
+        .iter()
+        .map(|p| p.event_detector.interruption_count)
+        .sum();
     let rvc: u32 = phases.iter().map(|p| p.rvc_detector.rvc_count).sum();
     let max_delta = phases
         .iter()

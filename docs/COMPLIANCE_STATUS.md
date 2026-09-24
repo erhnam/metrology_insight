@@ -13,19 +13,19 @@
 
 ## IEC 61000-4-30:2021 Class S
 
-| Item | Parameter | Status | Notes / Evidence |
-|--------|-----------|--------|------------------|
-| 5.1 | Power frequency | Partial implementation | PLL tracking + 10 s sliding average (`src/pll.rs`); no 10-min aggregation; ±50 mHz accuracy not verified. |
-| 5.2 | Supply voltage magnitude | Partial implementation | 10-cycle RMS (`src/signal.rs:357-364`) and Urms(½) (`src/urms.rs`); 20–120 % Udin range and ±0.5 % accuracy not verified. |
-| 5.3 | Flicker (Pst, Plt) | Partial implementation | IEC 61000-4-15 Blocks 1–4 with P_inst computed in realtime (`src/flicker.rs`); P_st classifier and P_lt helper provided but not wired into the realtime pipeline. |
-| 5.4 | Voltage dips and swells | Partial implementation | Urms(½) detector with IEC-typical thresholds (90 %/110 % + 1 % hysteresis) (`src/events.rs`); no sliding reference Usr. |
-| 5.5 | Voltage interruptions | Partial implementation | Detection via Urms(½) < 10 % (`src/events.rs`). |
-| 5.7 | Supply voltage unbalance | Partial implementation | Fortescue symmetrical components u2 + u0 (`src/unbalance.rs`); ±0.3 % accuracy and 1–5 % range not verified. |
-| 5.8 | Voltage harmonics | Partial implementation | 512-point RFFT + THD up to 50th order (`src/harmonics.rs`); uses a **1-cycle** window while IEC 61000-4-7 (Class II) requires **10-cycle** windows; single-bin method (no subgroups). |
-| 5.9 | Voltage interharmonics | Algorithm implementation | 49-band Goertzel accumulator; Class S method is left to the manufacturer (SBM) (`src/harmonics.rs`). |
-| 5.11 | Rapid voltage changes (RVC) | Partial implementation | Urms(½) sliding-window state machine (`src/rvc.rs`); window length is an approximation of the  method. |
-| 5.13 | Current (incl. current unbalance) | N/R for Class S | RMS, harmonics and current unbalance present (`src/unbalance.rs`, `src/voltage_current.rs`). |
-| 4.6 / 4.7 | Quality flags | Partial implementation | `Q_FLAG_PLL_UNSETTLED`, `Q_FLAG_SYNC_INCONSISTENT`, `Q_FLAG_OUT_OF_RANGE`, `Q_FLAG_EVENT_MARKED` (`src/types.rs:511-515`, `src/signal.rs:335-342`). |
+| Parameter | Status | Notes / Evidence |
+|-----------|--------|------------------|
+| Power frequency | Partial implementation | PLL tracking + 10 s sliding average (`src/pll.rs`); no 10-min aggregation; ±50 mHz accuracy not verified. |
+| Supply voltage magnitude | Partial implementation | 10-cycle RMS (`src/signal.rs:357-364`) and Urms(½) (`src/urms.rs`); 20–120 % Udin range and ±0.5 % accuracy not verified. |
+| Flicker (Pst, Plt) | Partial implementation | IEC 61000-4-15 Blocks 1–4 with P_inst computed in realtime (`src/flicker.rs`); P_st classifier and P_lt helper provided but not wired into the realtime pipeline. |
+| Voltage dips and swells | Partial implementation | Urms(½) detector with IEC-typical thresholds (90 %/110 % + 1 % hysteresis) (`src/events.rs`); no sliding reference Usr. |
+| Voltage interruptions | Partial implementation | Detection via Urms(½) < 10 % (`src/events.rs`). |
+| Supply voltage unbalance | Partial implementation | Fortescue symmetrical components u2 + u0 (`src/unbalance.rs`); ±0.3 % accuracy and 1–5 % range not verified. |
+| Voltage harmonics | Partial implementation | 512-point RFFT + THD up to 50th order (`src/harmonics.rs`); uses a **1-cycle** window while IEC 61000-4-7 (Class II) requires **10-cycle** windows; single-bin method (no subgroups). |
+| Voltage interharmonics | Algorithm implementation | 49-band Goertzel accumulator; Class S method is left to the manufacturer (SBM) (`src/harmonics.rs`). |
+| Rapid voltage changes (RVC) | Partial implementation | Urms(½) sliding-window state machine (`src/rvc.rs`); window length is an approximation of the  method. |
+| Current (incl. current unbalance) | N/R for Class S | RMS, harmonics and current unbalance present (`src/unbalance.rs`, `src/voltage_current.rs`). |
+| Quality flags | Partial implementation | `Q_FLAG_PLL_UNSETTLED`, `Q_FLAG_SYNC_INCONSISTENT`, `Q_FLAG_OUT_OF_RANGE`, `Q_FLAG_EVENT_MARKED` (`src/types.rs:511-515`, `src/signal.rs:335-342`). |
 
 ## IEC 62053-21 (2nd Ed.) — Static Meters for AC Active Energy
 
