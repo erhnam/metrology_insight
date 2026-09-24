@@ -105,23 +105,12 @@ impl Default for RvcDetector {
 impl RvcDetector {
     /// Reports whether an RVC event is currently active.
     ///
-    /// # Returns
-    ///
     /// `true` when the detector is in the `Active` state.
     pub fn is_active(&self) -> bool {
         self.state == RvcState::Active
     }
 
     /// Processes one half-cycle RMS sample, updating the rolling window and the event state machine.
-    ///
-    /// # Arguments
-    ///
-    /// * `phase_index` - Index of the phase this sample belongs to.
-    /// * `urms_half` - Half-cycle RMS voltage of the sample.
-    /// * `now_ns` - Current timestamp in nanoseconds.
-    /// * `config` - Threshold and hysteresis configuration.
-    ///
-    /// # Returns
     ///
     /// The completed `RvcRecord` when an event ends, or `None` otherwise.
     pub fn process_half_cycle(
@@ -262,8 +251,6 @@ impl RvcDetector {
     }
 
     /// Returns how full the rolling window buffer is.
-    ///
-    /// # Returns
     ///
     /// The buffer fill percentage from 0 to 100.
     pub fn buffer_fill_pct(&self) -> f32 {

@@ -115,10 +115,6 @@ struct SimpleRng(u32);
 #[cfg(not(feature = "rand"))]
 impl SimpleRng {
     /// Returns the next pseudo-random float uniformly distributed in [0, 1).
-    ///
-    /// # Returns
-    ///
-    /// A pseudo-random `f32` in the unit interval.
     fn next_f32(&mut self) -> f32 {
         self.0 = self.0.wrapping_mul(1103515245).wrapping_add(12345);
         (self.0 >> 8) as f32 / 16777216.0
@@ -127,12 +123,6 @@ impl SimpleRng {
 
 /// Converts a voltage in volts to ADC counts.
 ///
-/// # Arguments
-///
-/// * `v` - Voltage in volts.
-///
-/// # Returns
-///
 /// The voltage scaled to ADC LSB counts.
 fn voltage(v: f32) -> f32 {
     v * VIN_TO_COUNTS
@@ -140,38 +130,17 @@ fn voltage(v: f32) -> f32 {
 
 /// Converts a current in amperes to ADC counts.
 ///
-/// # Arguments
-///
-/// * `i` - Current in amperes.
-///
-/// # Returns
-///
 /// The current scaled to ADC LSB counts.
 fn current(i: f32) -> f32 {
     i * AMPS_TO_COUNTS
 }
 
 /// Converts an angle in degrees to radians.
-///
-/// # Arguments
-///
-/// * `deg` - Angle in degrees.
-///
-/// # Returns
-///
-/// The equivalent angle in radians.
 fn offset(deg: f32) -> f32 {
     deg * 2.0 * PI / 360.0
 }
 
 /// Computes the instantaneous phase angle in radians for a sample index.
-///
-/// # Arguments
-///
-/// * `phase_deg` - Initial phase offset in degrees.
-/// * `i` - Sample index within the buffer.
-///
-/// # Returns
 ///
 /// The phase angle in radians at sample `i`.
 fn angle_rad(phase_deg: f32, i: usize) -> f32 {
@@ -179,17 +148,6 @@ fn angle_rad(phase_deg: f32, i: usize) -> f32 {
 }
 
 /// Generates one buffer of samples (fundamental plus optional harmonics and noise) for a phase.
-///
-/// # Arguments
-///
-/// * `phase_deg` - Phase offset in degrees.
-/// * `peak` - Peak amplitude in ADC counts.
-/// * `is_voltage` - Whether to generate a voltage (true) or current (false) waveform.
-/// * `noise` - Random noise samples; used only when `NOISE_RANDOM_PERCENT` is non-zero.
-/// * `noise_mean` - Mean of the noise samples.
-/// * `noise_max` - Maximum of the noise samples.
-///
-/// # Returns
 ///
 /// A vector of `N_SAMPLES` signal values in ADC counts.
 fn gen_one_signal(
@@ -256,8 +214,6 @@ fn gen_one_signal(
 
 /// Generates a buffer of random noise samples (`rand` when enabled, `SimpleRng` otherwise).
 ///
-/// # Returns
-///
 /// A tuple of the noise vector, its mean, and its maximum value.
 fn gen_noise() -> (alloc::vec::Vec<f32>, f32, f32) {
     if NOISE_RANDOM_PERCENT > 0.0 {
@@ -284,12 +240,6 @@ fn gen_noise() -> (alloc::vec::Vec<f32>, f32, f32) {
 
 /// Converts float signal values to integer ADC samples, applying the DC offset and truncation.
 ///
-/// # Arguments
-///
-/// * `v` - Float signal values.
-///
-/// # Returns
-///
 /// A vector of integer ADC counts.
 fn to_i32_vec(v: alloc::vec::Vec<f32>) -> alloc::vec::Vec<i32> {
     v.into_iter()
@@ -298,8 +248,6 @@ fn to_i32_vec(v: alloc::vec::Vec<f32>) -> alloc::vec::Vec<i32> {
 }
 
 /// Generates single-phase voltage and current sample buffers in ADC counts.
-///
-/// # Returns
 ///
 /// A vector of two buffers: voltage first, then current.
 pub fn generate_signals_monophase() -> alloc::vec::Vec<alloc::vec::Vec<i32>> {
@@ -312,11 +260,6 @@ pub fn generate_signals_monophase() -> alloc::vec::Vec<alloc::vec::Vec<i32>> {
 }
 
 /// Generates three-phase (or single-phase) voltage and current sample buffers in ADC counts.
-///
-/// # Returns
-///
-/// A vector of per-channel sample buffers. In three-phase mode the order is
-/// [Va, Ia, Vb, Ib, Vc, Ic, In, unused]; otherwise a two-buffer [voltage, current] set.
 pub fn generate_signals() -> alloc::vec::Vec<alloc::vec::Vec<i32>> {
     if !ENABLE_THREE_PHASE {
         return generate_signals_monophase();

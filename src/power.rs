@@ -8,14 +8,6 @@ use crate::{MetrologyInsightSignal, MetrologyInsightSocket, PowerMetrics};
 #[allow(dead_code)]
 /// Compute real power from RMS voltage, RMS current, and power factor.
 ///
-/// # Arguments
-///
-/// * `voltage_rms` — RMS voltage in volts.
-/// * `current_rms` — RMS current in amperes.
-/// * `power_factor` — Power factor (cos φ).
-///
-/// # Returns
-///
 /// The product `voltage × current × power factor` in watts.
 fn real_power_from_rms_and_power_factor(
     voltage_rms: f32,
@@ -26,13 +18,6 @@ fn real_power_from_rms_and_power_factor(
 }
 
 /// Compute real power as the average of the instantaneous voltage–current product.
-///
-/// # Arguments
-///
-/// * `signal_v` — Voltage samples.
-/// * `signal_i` — Current samples.
-///
-/// # Returns
 ///
 /// The average instantaneous power, or 0.0 when the signals are empty or have
 /// different lengths.
@@ -58,29 +43,12 @@ fn reactive_power_from_angle(_real_power: f32, apparent_power: f32, c2v_angle_de
 }
 
 /// Compute apparent power as the product of RMS voltage and RMS current.
-///
-/// # Arguments
-///
-/// * `voltage_rms` — RMS voltage in volts.
-/// * `current_rms` — RMS current in amperes.
-///
-/// # Returns
-///
-/// The apparent power in volt-amperes.
 fn apparent_power_from_rms(voltage_rms: f32, current_rms: f32) -> f32 {
     voltage_rms * current_rms
 }
 
 /// Compute the power factor as the ratio of real to apparent power.
 ///
-/// # Arguments
-///
-/// * `apparent_power` — Apparent power in volt-amperes.
-/// * `real_power` — Real power in watts.
-///
-/// # Returns
-///
-/// The power factor clamped to the range [-1.0, 1.0], or 0.0 when the apparent
 /// power is zero.
 fn power_factor_from_apparent_and_real(apparent_power: f32, real_power: f32) -> f32 {
     if apparent_power.abs() > 0.0 {
@@ -92,14 +60,6 @@ fn power_factor_from_apparent_and_real(apparent_power: f32, real_power: f32) -> 
 
 /// Calculate all power metrics (real, reactive, apparent, and power factor) for
 /// a single phase.
-///
-/// # Arguments
-///
-/// * `voltage_signal` — Mutable voltage signal used to read the real-wave slice.
-/// * `current_signal` — Mutable current signal used to read the real-wave slice.
-/// * `c2v_angle` — Current-to-voltage phase angle in degrees.
-///
-/// # Returns
 ///
 /// A [`PowerMetrics`] struct containing the computed power values.
 fn calculate_all_power_metrics(
@@ -129,11 +89,6 @@ fn calculate_all_power_metrics(
 }
 
 /// Update the per-phase and total power metrics across all active phases.
-///
-/// # Arguments
-///
-/// * `socket` — Mutable metrology socket whose phase and total power metrics are updated.
-/// * `active_phases` — Number of active phases to process.
 pub fn update_power_metrics(socket: &mut MetrologyInsightSocket, active_phases: usize) {
     for i in 0..active_phases {
         let c2v_angle = socket.phases[i].phase_angles.c2v_angle;

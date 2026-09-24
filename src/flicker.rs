@@ -59,12 +59,6 @@ pub struct BiquadChain<const N: usize> {
 impl<const N: usize> BiquadChain<N> {
     /// Creates a new biquad chain with the given second-order sections.
     ///
-    /// # Arguments
-    ///
-    /// * `sos` - Array of second-order sections, each with 6 coefficients [b0, b1, b2, a0, a1, a2].
-    ///
-    /// # Returns
-    ///
     /// A `BiquadChain` with all state variables initialized to zero.
     pub fn new(sos: [[f32; 6]; N]) -> Self {
         Self {
@@ -75,12 +69,6 @@ impl<const N: usize> BiquadChain<N> {
     }
 
     /// Processes a single sample through all cascaded biquad sections.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - Input sample to filter.
-    ///
-    /// # Returns
     ///
     /// The filtered output sample after the final section.
     pub fn process(&mut self, input: f32) -> f32 {
@@ -134,8 +122,6 @@ impl Default for FlickerMeter {
 impl FlickerMeter {
     /// Creates a new `FlickerMeter` with a 230 V initial RMS reference and reset filter state.
     ///
-    /// # Returns
-    ///
     /// A `FlickerMeter` ready to accept samples.
     pub fn new() -> Self {
         Self {
@@ -154,10 +140,6 @@ impl FlickerMeter {
     /// Updates the initial `avg_rms` reference to the configured nominal voltage.
     ///
     /// Must be called from `apply_config()` when the nominal voltage changes at runtime.
-    ///
-    /// # Arguments
-    ///
-    /// * `nominal_v` - Nominal RMS voltage used to pre-seed `avg_rms`.
     pub fn set_nominal_voltage(&mut self, nominal_v: f32) {
         if !self.initialized {
             // Pre-seed avg_rms as nominal_v² (peak² / 2 = Vrms²)
@@ -166,11 +148,6 @@ impl FlickerMeter {
     }
 
     /// Processes a single voltage sample through the IEC 61000-4-15 flicker chain.
-    ///
-    /// # Arguments
-    ///
-    /// * `v_in` - Instantaneous voltage sample in volts.
-    /// * `fs` - Sampling frequency in Hz (typically 8000).
     pub fn process_sample(&mut self, v_in: f32, fs: f32) {
         let v_sq = v_in * v_in;
         if !self.initialized && v_sq > FLICKER_SEED_THRESHOLD_SQ {
@@ -215,8 +192,6 @@ impl FlickerMeter {
 
     /// Calculates the short-term flicker severity Pst from the classifier histogram.
     ///
-    /// # Returns
-    ///
     /// The Pst value, or 0.0 if fewer than `FLICKER_PST_MIN_SAMPLES` samples were collected.
     pub fn calculate_pst(&self) -> f32 {
         self.pst_classifier.calculate_pst()
@@ -242,8 +217,6 @@ pub struct PstClassifier {
 impl Default for PstClassifier {
     /// Creates a `PstClassifier` with an all-zero histogram and no recorded samples.
     ///
-    /// # Returns
-    ///
     /// An empty `PstClassifier`.
     fn default() -> Self {
         Self {
@@ -261,10 +234,6 @@ impl PstClassifier {
     }
 
     /// Records a P_inst sample into the logarithmic histogram.
-    ///
-    /// # Arguments
-    ///
-    /// * `p_inst` - Instantaneous flicker perceptibility value to bin.
     pub fn add_sample(&mut self, p_inst: f32) {
         if p_inst <= 0.0 {
             return;
@@ -281,12 +250,6 @@ impl PstClassifier {
 
     /// Converts a histogram bin index to its representative P_inst value (bin center).
     ///
-    /// # Arguments
-    ///
-    /// * `bin_idx` - Histogram bin index in [0, FLICKER_BINS).
-    ///
-    /// # Returns
-    ///
     /// The P_inst value at the bin center on the logarithmic scale.
     fn bin_to_p_inst(bin_idx: usize) -> f32 {
         let frac = (bin_idx as f32 + 0.5) / FLICKER_BINS as f32;
@@ -294,12 +257,6 @@ impl PstClassifier {
     }
 
     /// Returns the P_inst value exceeded for the given percentage of the time.
-    ///
-    /// # Arguments
-    ///
-    /// * `percent` - Percentage of observation time (e.g. 50 for P50).
-    ///
-    /// # Returns
     ///
     /// The P_inst value at the requested percentile, or 0.0 if no samples were recorded.
     pub fn get_exceeded_percentile(&self, percent: f32) -> f32 {
@@ -321,8 +278,6 @@ impl PstClassifier {
 
     /// Calculates the Short-Term Flicker Severity Pst per IEC 61000-4-15.
     ///
-    /// # Returns
-    ///
     /// The weighted Pst value, or 0.0 if fewer than `FLICKER_PST_MIN_SAMPLES` samples were collected.
     pub fn calculate_pst(&self) -> f32 {
         if self.total_samples < FLICKER_PST_MIN_SAMPLES {
@@ -342,12 +297,6 @@ impl PstClassifier {
 }
 
 /// Calculates the Long-Term Flicker Severity Plt over 12 10-minute Pst values (2 hours).
-///
-/// # Arguments
-///
-/// * `pst_12_samples` - Array of 12 short-term Pst values.
-///
-/// # Returns
 ///
 /// The Plt value computed as the cube root of the mean of the cubed Pst values.
 pub fn calculate_plt(pst_12_samples: &[f32; 12]) -> f32 {

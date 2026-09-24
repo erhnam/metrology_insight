@@ -12,13 +12,6 @@ pub const PHASE_DIRECTION_DEADBAND_DEG: f32 = 0.5;
 // Unused helper: Alternative power-factor based phase angle calculator. Retained for API completeness.
 /// Computes the phase angle (degrees) from power factor and reactive power sign.
 ///
-/// # Arguments
-///
-/// * `power_factor` - Power factor in the range [-1, 1].
-/// * `react_power` - Reactive power; its sign determines the angle polarity.
-///
-/// # Returns
-///
 /// The phase angle in degrees, or 0.0 if `power_factor` is out of range.
 #[allow(dead_code)]
 fn phase_angle_from_pf_and_react_power(power_factor: f32, react_power: f32) -> f32 {
@@ -41,13 +34,6 @@ fn phase_angle_from_pf_and_react_power(power_factor: f32, react_power: f32) -> f
 // non-negative values [0, 180] deg, preventing capacitive (negative phase angle) detection.
 /// Computes the unsigned phase angle (degrees) via the vector dot product (acos).
 ///
-/// # Arguments
-///
-/// * `voltage` - Voltage samples.
-/// * `current` - Current samples.
-///
-/// # Returns
-///
 /// The unsigned phase angle in degrees, always within [0, 180].
 #[allow(dead_code)]
 fn phase_angle_from_signals(voltage: &[f32], current: &[f32]) -> f32 {
@@ -65,12 +51,6 @@ fn phase_angle_from_signals(voltage: &[f32], current: &[f32]) -> f32 {
 
 /// Finds the first rising zero crossing, linearly interpolated for sub-sample accuracy.
 ///
-/// # Arguments
-///
-/// * `signal` - Signal samples.
-///
-/// # Returns
-///
 /// The interpolated sample index of the first rising zero crossing, or `None` if none exists.
 fn find_first_rising_zero_crossing(signal: &[f32]) -> Option<f32> {
     for i in 1..signal.len() {
@@ -87,15 +67,6 @@ fn find_first_rising_zero_crossing(signal: &[f32]) -> Option<f32> {
 }
 
 /// Converts a sample index to a phase angle in degrees within one cycle.
-///
-/// # Arguments
-///
-/// * `sample_index` - Sample index within the cycle.
-/// * `samples_per_cycle` - Number of samples per cycle.
-///
-/// # Returns
-///
-/// The equivalent angle in degrees in the range [0, 360).
 fn sample_index_to_angle(sample_index: f32, samples_per_cycle: f32) -> f32 {
     let delay_deg = (sample_index / samples_per_cycle) * 360.0;
     let mut angle_deg = (360.0 - (delay_deg % 360.0)) % 360.0;
@@ -106,15 +77,6 @@ fn sample_index_to_angle(sample_index: f32, samples_per_cycle: f32) -> f32 {
 }
 
 /// Computes the absolute zero-crossing phase angles of the voltage and current signals.
-///
-/// # Arguments
-///
-/// * `voltage_signal` - Voltage samples.
-/// * `current_signal` - Current samples.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-/// * `freq_est` - Estimated signal frequency in Hz.
-///
-/// # Returns
 ///
 /// A tuple `(v_angle, c_angle)` with the voltage and current phase angles in degrees.
 fn absolute_phase_angles_from_signals(
@@ -134,15 +96,6 @@ fn absolute_phase_angles_from_signals(
 }
 
 /// Computes the full phase-angle metrics, including the signed current-to-voltage angle and direction.
-///
-/// # Arguments
-///
-/// * `voltage_signal` - Voltage samples.
-/// * `current_signal` - Current samples.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-/// * `freq_est` - Estimated signal frequency in Hz.
-///
-/// # Returns
 ///
 /// A `PhaseAngleMetrics` struct with the angles and classified direction.
 fn all_phase_angles_from_signals(
@@ -183,12 +136,6 @@ fn all_phase_angles_from_signals(
 }
 
 /// Updates the phase-angle metrics for every active phase of the socket.
-///
-/// # Arguments
-///
-/// * `socket` - Metrology socket whose per-phase metrics are updated in place.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-/// * `active_phases` - Number of phases to process.
 pub fn update_phase_angles(
     socket: &mut MetrologyInsightSocket,
     adc_samples_second: f32,

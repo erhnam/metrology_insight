@@ -10,13 +10,6 @@ const W_SEC_TO_UJ: f64 = 1_000_000.0;
 
 /// Compute the elapsed time covered by the buffered voltage samples.
 ///
-/// # Arguments
-///
-/// * `socket` — Metrology socket whose first phase's buffered sample count is used.
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
-///
-/// # Returns
-///
 /// The elapsed time in seconds, or [`None`] when no samples are buffered or the
 /// sampling rate is zero.
 fn elapsed_time_seconds(socket: &MetrologyInsightSocket, adc_samples_second: f64) -> Option<f64> {
@@ -31,11 +24,6 @@ fn elapsed_time_seconds(socket: &MetrologyInsightSocket, adc_samples_second: f64
 
 /// Accumulate active energy into the quadrant determined by the signs of real
 /// and reactive power, then refresh the corresponding kWh values.
-///
-/// # Arguments
-///
-/// * `socket` — Mutable metrology socket whose quadrant energy counters are updated.
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
 fn active_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
     if let Some(elapsed_time) = elapsed_time_seconds(socket, adc_samples_second) {
         let p_real = socket.power_metrics_total.real_power as f64;
@@ -66,11 +54,6 @@ fn active_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_se
 
 /// Accumulate reactive energy into the quadrant determined by the signs of real
 /// and reactive power, then refresh the corresponding kWh values.
-///
-/// # Arguments
-///
-/// * `socket` — Mutable metrology socket whose quadrant energy counters are updated.
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
 fn reactive_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
     if let Some(elapsed_time) = elapsed_time_seconds(socket, adc_samples_second) {
         let p_real = socket.power_metrics_total.real_power as f64;
@@ -100,11 +83,6 @@ fn reactive_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_
 }
 
 /// Update both the active and reactive quadrant energy counters.
-///
-/// # Arguments
-///
-/// * `socket` — Mutable metrology socket whose quadrant energy metrics are updated.
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
 pub fn update_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_samples_second: f64) {
     active_energy_by_quadrant(socket, adc_samples_second);
     reactive_energy_by_quadrant(socket, adc_samples_second);
@@ -112,12 +90,6 @@ pub fn update_energy_by_quadrant(socket: &mut MetrologyInsightSocket, adc_sample
 
 /// Update quadrant energy and recompute the total imported, exported, and
 /// balance energy values for both active and reactive energy.
-///
-/// # Arguments
-///
-/// * `socket` — Mutable metrology socket whose total energy metrics are updated.
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
-/// * `_active_phases` — Number of active phases (currently unused).
 pub fn update_total_energy(
     socket: &mut MetrologyInsightSocket,
     adc_samples_second: f64,

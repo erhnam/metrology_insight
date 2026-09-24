@@ -20,9 +20,6 @@ pub struct MovingAverage<const N: usize> {
 impl<const N: usize> MovingAverage<N> {
     /// Create a new moving-average filter initialised to zero.
     ///
-    /// # Returns
-    ///
-    /// A new [`MovingAverage`] with all buffer entries, the index, count, and
     /// sum set to zero.
     pub fn new() -> Self {
         Self {
@@ -46,12 +43,6 @@ impl<const N: usize> MovingAverage<N> {
     ///
     /// Until the buffer is filled (`N` samples), the average is
     /// computed over fewer samples.
-    ///
-    /// # Arguments
-    ///
-    /// * `value` — New sample value.
-    ///
-    /// # Returns
     ///
     /// The current moving average.
     pub fn push(&mut self, value: f32) -> f32 {

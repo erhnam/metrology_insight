@@ -44,12 +44,6 @@ pub struct PhasePair {
 /// * `ThreePhase3Wire` → [PhaseA, PhaseB, PhaseC]
 /// * `ThreePhase4Wire` → [PhaseA, PhaseB, PhaseC, Neutral]
 ///
-/// # Arguments
-///
-/// * `mode` — System wiring mode.
-///
-/// # Returns
-///
 /// The fixed array of active phase pairs for the given mode.
 pub fn phase_pairs_for_mode(mode: crate::types::SystemMode) -> &'static [PhasePair; 4] {
     match mode {
@@ -107,33 +101,16 @@ pub const DEFAULT_CHANNEL_MAP: [ChannelType; 8] = [
 ];
 
 /// Return the voltage–current phase pairs for the default 3-phase + neutral map.
-///
-/// # Returns
-///
-/// A copy of the default 3-phase + neutral [`PhasePair`] array.
 pub fn default_phase_pairs() -> [PhasePair; 4] {
     DEFAULT_PAIRS
 }
 
 /// Group 8 channels into phase pairs using a channel-type map.
 ///
-/// # Arguments
-///
-/// * `map` — Channel-type map for the 8 ADC channels.
-///
-/// # Returns
-///
 /// The four [`PhasePair`]s built from the map, falling back to default channel
 /// indices when a channel type is not present.
 pub fn channel_map_to_pairs(map: &[ChannelType; 8]) -> [PhasePair; 4] {
     /// Find the index of a channel type within the channel map.
-    ///
-    /// # Arguments
-    ///
-    /// * `map` — The 8-channel channel-type map.
-    /// * `needle` — Channel type to locate.
-    ///
-    /// # Returns
     ///
     /// The matching channel index, or [`None`] when the channel is not present.
     fn find_ch(map: &[ChannelType; 8], needle: ChannelType) -> Option<usize> {

@@ -30,27 +30,12 @@ pub const SYNC_CONSISTENCY_THRESHOLD: f32 = 0.001;
 
 /// Checks whether the measured frequency lies within the tolerance band around `nominal`.
 ///
-/// # Arguments
-///
-/// * `freq` - Measured frequency in Hz.
-/// * `nominal` - Nominal frequency in Hz.
-///
-/// # Returns
-///
 /// `true` if `freq` is within `[FREQ_TOLERANCE_LOW, FREQ_TOLERANCE_HIGH] * nominal`.
 fn is_frequency_in_tolerance(freq: f32, nominal: f32) -> bool {
     freq < (FREQ_TOLERANCE_HIGH * nominal) && freq > (FREQ_TOLERANCE_LOW * nominal)
 }
 
 /// Determines the nominal grid frequency (50 or 60 Hz) and the matching cycle length.
-///
-/// # Arguments
-///
-/// * `freq_zc` - Zero-crossing measured frequency in Hz.
-/// * `length` - Cycle length in samples; updated to match the detected nominal frequency.
-/// * `nominal_freq` - Previously assumed nominal frequency.
-///
-/// # Returns
 ///
 /// The detected nominal frequency in Hz.
 fn calculate_nominal_frequency(freq_zc: f32, length: &mut usize, nominal_freq: f32) -> f32 {
@@ -70,15 +55,6 @@ fn calculate_nominal_frequency(freq_zc: f32, length: &mut usize, nominal_freq: f
 }
 
 /// Estimates the grid frequency from interpolated rising zero crossings.
-///
-/// # Arguments
-///
-/// * `signal` - Input signal samples.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-///
-/// # Returns
-///
-/// The estimated frequency in Hz, or -1.0 if fewer than two crossings were found.
 fn calculate_zero_crossing_frequency(signal: &[f32], adc_samples_second: f32) -> f32 {
     let num_samples = signal.len();
     let mut num_crossing: usize = 0;
@@ -133,14 +109,6 @@ fn calculate_zero_crossing_frequency(signal: &[f32], adc_samples_second: f32) ->
 
 /// Rounds `length` down to a whole number of cycles at the given frequency.
 ///
-/// # Arguments
-///
-/// * `length` - Desired window length in samples.
-/// * `frequency` - Signal frequency in Hz.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-///
-/// # Returns
-///
 /// The largest multiple of one cycle that does not exceed `length`.
 fn limit_length_to_cycles(length: usize, frequency: f32, adc_samples_second: f32) -> usize {
     let one_cycle: usize = crate::math::round(adc_samples_second / frequency) as usize;
@@ -151,12 +119,6 @@ fn limit_length_to_cycles(length: usize, frequency: f32, adc_samples_second: f32
 }
 
 /// Updates an exponential moving average with a new input value.
-///
-/// # Arguments
-///
-/// * `in_value` - New measurement to fold into the average.
-/// * `out_value` - Average being updated in place; seeded with `in_value` on the first call.
-/// * `avg` - Smoothing factor applied to the difference between the new and old values.
 pub fn update_average(in_value: f32, out_value: &mut f32, avg: f32) {
     if *out_value == 0.0 {
         *out_value = in_value;
@@ -167,10 +129,6 @@ pub fn update_average(in_value: f32, out_value: &mut f32, avg: f32) {
 }
 
 /// Removes the DC component by subtracting the signal mean from every sample.
-///
-/// # Arguments
-///
-/// * `signal` - Signal samples, modified in place.
 pub fn remove_signal_offset(signal: &mut [f32]) {
     if signal.is_empty() {
         return;
@@ -184,14 +142,6 @@ pub fn remove_signal_offset(signal: &mut [f32]) {
 }
 
 /// Checks whether the signal's peak-to-peak amplitude meets the minimum for its type.
-///
-/// # Arguments
-///
-/// * `signal` - Signal samples.
-/// * `signal_type` - Signal type used to look up the minimum amplitude.
-/// * `config` - Configuration providing the minimum amplitude for `signal_type`.
-///
-/// # Returns
 ///
 /// `true` if the signal has at least 2 samples and sufficient amplitude.
 fn is_signal_valid(
@@ -216,14 +166,6 @@ fn is_signal_valid(
 
 #[cfg(feature = "alloc")]
 /// Integrates the signal and normalizes the result so its RMS equals the input RMS.
-///
-/// # Arguments
-///
-/// * `s` - Input signal samples.
-/// * `frequency_zc` - Zero-crossing frequency in Hz.
-/// * `adc_samples_second` - ADC sampling rate in samples per second.
-///
-/// # Returns
 ///
 /// A vector with the integral waveform scaled to match the input RMS.
 pub fn signal_integrate(
@@ -261,14 +203,6 @@ pub fn signal_integrate(
 use crate::types::MetrologyInsightConfig;
 
 /// Processes one metrology signal: offset removal, frequency detection, RMS, PLL, harmonics and quality flags.
-///
-/// # Arguments
-///
-/// * `signal` - Signal state, updated in place.
-/// * `reference_freq_zc` - Reference zero-crossing frequency used for current channels or when `calc_freq` is false.
-/// * `phase_delay_us` - Phase delay in microseconds applied during synchronous resampling.
-/// * `config` - Metrology configuration.
-/// * `fft_cache` - Shared FFT and sync buffer cache.
 pub fn process_signal(
     signal: &mut MetrologyInsightSignal,
     reference_freq_zc: f32,

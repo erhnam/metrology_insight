@@ -15,10 +15,6 @@ const THREE_PHASE_DEFAULT_ANGLES: [f32; 3] = [0.0, 120.0, 240.0];
 impl MetrologyInsight {
     /// Processes all signals for the active phases and updates the socket metrics
     /// (harmonics, interharmonics, flicker, events, RVC, power, energy and unbalance).
-    ///
-    /// # Arguments
-    ///
-    /// * `active_phases` - Number of active phases (1..=4) to process this frame.
     pub fn process_and_update_metrics(&mut self, active_phases: usize) {
         self.active_phases = active_phases;
         if self.fft_cache.is_none() {

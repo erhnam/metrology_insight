@@ -40,13 +40,6 @@ pub struct PolyphaseTestResult {
 
 /// Builds a test configuration derived from the sampling rate and signal frequency.
 ///
-/// # Arguments
-///
-/// * `fs` - Sampling rate.
-/// * `freq` - Signal frequency, used to select the nominal frequency and per-cycle settings.
-///
-/// # Returns
-///
 /// A fully populated `MetrologyInsightConfig` for accuracy testing.
 fn make_test_config(fs: f32, freq: f32) -> MetrologyInsightConfig {
     let nominal = if (freq - FREQ_NOMINAL_50).abs() < 0.1 {
@@ -94,13 +87,6 @@ fn make_test_config(fs: f32, freq: f32) -> MetrologyInsightConfig {
 }
 
 /// Copies one cycle of V and I samples into the insight's phase buffer.
-///
-/// # Arguments
-///
-/// * `insight` - The metrology instance to fill.
-/// * `v_samples` - Voltage samples for the cycle.
-/// * `i_samples` - Current samples for the cycle.
-/// * `phase_idx` - Target phase index.
 fn push_cycle(
     insight: &mut MetrologyInsight,
     v_samples: &[f32],
@@ -116,25 +102,12 @@ fn push_cycle(
 }
 
 /// Clears the buffered V/I samples for a given phase.
-///
-/// # Arguments
-///
-/// * `insight` - The metrology instance to clear.
-/// * `phase_idx` - Phase index to clear.
 fn clear_cycle(insight: &mut MetrologyInsight, phase_idx: usize) {
     insight.socket.phases[phase_idx].voltage.clear_samples();
     insight.socket.phases[phase_idx].current.clear_samples();
 }
 
 /// Computes the net active energy in Wh from the insight's accumulated metrics.
-///
-/// # Arguments
-///
-/// * `insight` - Metrology instance with updated energy metrics.
-///
-/// # Returns
-///
-/// The imported-minus-exported active energy in watt-hours.
 fn energy_wh(insight: &MetrologyInsight) -> f64 {
     // imported() / exported() return kWh; convert to Wh
     (insight.socket.energy_metrics.active.imported()
@@ -143,16 +116,6 @@ fn energy_wh(insight: &MetrologyInsight) -> f64 {
 }
 
 /// Generates one cycle of pure-sine voltage and current waveforms at the given power factor.
-///
-/// # Arguments
-///
-/// * `v_rms` - RMS voltage of the cycle.
-/// * `i_rms` - RMS current of the cycle.
-/// * `pf` - Power factor (cosine of the phase angle between V and I).
-/// * `freq` - Fundamental frequency of the cycle.
-/// * `fs` - Sampling rate.
-///
-/// # Returns
 ///
 /// A tuple of the voltage and current sample vectors, each one full cycle long.
 pub fn generate_cycle(
@@ -181,15 +144,6 @@ pub fn generate_cycle(
 const HARMONIC_AMPS: &[(u32, f32)] = &[(3, 0.20), (5, 0.10), (7, 0.05)];
 
 /// Generates one cycle of V (pure sine) and I (fundamental + harmonics) at PF=1.
-///
-/// # Arguments
-///
-/// * `v_rms` - RMS voltage of the cycle.
-/// * `i_rms` - RMS current of the cycle.
-/// * `freq` - Fundamental frequency.
-/// * `fs` - Sampling rate.
-///
-/// # Returns
 ///
 /// A tuple of the voltage and current sample vectors, each one full cycle long.
 pub fn generate_cycle_with_harmonics(
@@ -220,18 +174,6 @@ pub fn generate_cycle_with_harmonics(
 }
 
 /// Generates one cycle with half-wave rectified current (DC component test).
-///
-/// # Arguments
-///
-/// * `v_rms` - RMS voltage of the cycle.
-/// * `i_rms` - RMS current of the cycle.
-/// * `pf` - Power factor (cosine of the phase angle between V and I).
-/// * `freq` - Fundamental frequency.
-/// * `fs` - Sampling rate.
-///
-/// # Returns
-///
-/// A tuple of the voltage and current sample vectors, with current zeroed on negative half-cycles.
 pub fn generate_half_wave_cycle(
     v_rms: f32,
     i_rms: f32,
@@ -257,14 +199,6 @@ pub fn generate_half_wave_cycle(
 }
 
 /// Runs a polyphase accuracy test over three phases and returns the measured vs. reference error.
-///
-/// # Arguments
-///
-/// * `phases` - Per-phase test points (V RMS, I RMS, PF).
-/// * `freq` - Nominal signal frequency.
-/// * `cycles` - Number of cycles to integrate.
-///
-/// # Returns
 ///
 /// The polyphase test result with reference/measured energy and percent error.
 pub fn run_polyphase_accuracy_test(
@@ -318,16 +252,6 @@ pub fn run_polyphase_accuracy_test(
 }
 
 /// Runs a single-phase accuracy test and returns the measured vs. reference error.
-///
-/// # Arguments
-///
-/// * `v_rms` - RMS voltage.
-/// * `i_rms` - RMS current.
-/// * `pf` - Power factor.
-/// * `freq` - Nominal signal frequency.
-/// * `cycles` - Number of cycles to integrate.
-///
-/// # Returns
 ///
 /// The accuracy test result with reference/measured energy and percent error.
 pub fn run_accuracy_test(

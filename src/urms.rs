@@ -15,19 +15,11 @@ pub struct UrmsHalfCycle {
 
 impl UrmsHalfCycle {
     /// Create a new half-cycle RMS tracker initialised to zero.
-    ///
-    /// # Returns
-    ///
-    /// A new [`UrmsHalfCycle`] in its default (all-zero) state.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Accumulate a sample into the current half-cycle sum of squares.
-    ///
-    /// # Arguments
-    ///
-    /// * `sample` — Sample value to accumulate.
     pub fn process_sample(&mut self, sample: f32) {
         self.sum_sq_curr += sample * sample;
         self.count_curr += 1.0;
@@ -39,13 +31,6 @@ impl UrmsHalfCycle {
     /// RMS over the previous and current half-cycle sums and resets the
     /// half-cycle buffers.
     ///
-    /// # Arguments
-    ///
-    /// * `min_samples` — Minimum number of samples required to finalise a cycle.
-    ///
-    /// # Returns
-    ///
-    /// `true` when a half-cycle was finalised, `false` when there are still not
     /// enough accumulated samples.
     pub fn half_cycle_trigger(&mut self, min_samples: f32) -> bool {
         if self.count_curr < min_samples {

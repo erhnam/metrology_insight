@@ -8,16 +8,6 @@
 /// Uses fractional-cycle interpolation when `frequency` is non-zero so that a
 /// non-integer number of samples per cycle is handled correctly.
 ///
-/// # Arguments
-///
-/// * `signal1` — First signal samples.
-/// * `signal2` — Second signal samples.
-/// * `length` — Number of samples to integrate over.
-/// * `frequency` — Fundamental frequency in Hz (0 disables interpolation).
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
-///
-/// # Returns
-///
 /// The averaged product (e.g. mean power), or 0.0 when the input is invalid or
 /// the signals are too short for interpolation.
 fn calculate_signal_power(
@@ -64,15 +54,6 @@ fn calculate_signal_power(
 }
 
 /// Calculate the RMS value of a signal over one cycle.
-///
-/// # Arguments
-///
-/// * `signal` — Signal samples.
-/// * `length_cycle` — Number of samples in one cycle.
-/// * `frequency` — Fundamental frequency in Hz (0 disables interpolation).
-/// * `adc_samples_second` — ADC sampling rate in samples per second.
-///
-/// # Returns
 ///
 /// The RMS value, or 0.0 when the input is empty or the computed power is zero.
 pub fn calculate_rms(

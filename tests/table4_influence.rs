@@ -16,8 +16,6 @@ const MIN_CYCLES: u32 = 1000;
 /// Runs the reference accuracy test at Un, In, PF=1.0 and returns the absolute
 /// percent error.
 ///
-/// # Returns
-///
 /// The absolute percent error of the baseline accuracy test.
 fn reference_error() -> f64 {
     run_accuracy_test(UN_V, IN_A, 1.0, FN_HZ, MIN_CYCLES)
@@ -26,17 +24,6 @@ fn reference_error() -> f64 {
 }
 
 /// Computes the additional error of a measurement condition over the reference.
-///
-/// # Arguments
-///
-/// * `v` - RMS voltage applied in the test.
-/// * `i` - RMS current applied in the test.
-/// * `pf` - Power factor of the test.
-/// * `freq` - Nominal frequency in Hz.
-/// * `cycles` - Number of cycles to run.
-/// * `ref_err` - Reference absolute percent error to subtract.
-///
-/// # Returns
 ///
 /// The additional error in percent (0 if the test error is below the reference
 /// error).
@@ -51,19 +38,6 @@ fn additional_error(v: f32, i: f32, pf: f32, freq: f32, cycles: u32, ref_err: f6
 
 /// Asserts that the additional error of a measurement condition stays under
 /// the limit.
-///
-/// # Arguments
-///
-/// * `v` - RMS voltage applied in the test.
-/// * `i` - RMS current applied in the test.
-/// * `pf` - Power factor of the test.
-/// * `freq` - Nominal frequency in Hz.
-/// * `limit` - Maximum allowed additional error in percent.
-/// * `label` - Test description used in the failure message.
-///
-/// # Panics
-///
-/// Panics if the additional error is not below the limit.
 fn check_add(v: f32, i: f32, pf: f32, freq: f32, limit: f64, label: &str) {
     let ref_err = reference_error();
     let add = additional_error(v, i, pf, freq, MIN_CYCLES, ref_err);
@@ -80,16 +54,9 @@ fn check_add(v: f32, i: f32, pf: f32, freq: f32, limit: f64, label: &str) {
 /// Asserts that the additional error of a custom measurement stays under the
 /// limit, obtaining the error from the provided closure.
 ///
-/// # Arguments
-///
-/// * `gen` - Closure that runs the custom measurement and returns its percent
 ///   error.
 /// * `limit` - Maximum allowed additional error in percent.
 /// * `label` - Test description used in the failure message.
-///
-/// # Panics
-///
-/// Panics if the additional error is not below the limit.
 fn check_add_custom<G>(gen: G, limit: f64, label: &str)
 where
     G: Fn() -> f64,
@@ -111,10 +78,6 @@ where
 
 /// Checks the additional error at 0.9 Un against the 0.7% voltage variation
 /// limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn voltage_09un() {
     check_add(0.9 * UN_V, IN_A, 1.0, FN_HZ, 0.7, "V=0.9 Un, I=In, PF=1.0");
@@ -122,10 +85,6 @@ fn voltage_09un() {
 
 /// Checks the additional error at 1.1 Un against the 0.7% voltage variation
 /// limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn voltage_11un() {
     check_add(1.1 * UN_V, IN_A, 1.0, FN_HZ, 0.7, "V=1.1 Un, I=In, PF=1.0");
@@ -135,10 +94,6 @@ fn voltage_11un() {
 
 /// Checks the additional error at 49 Hz against the 0.7% frequency variation
 /// limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn frequency_49hz() {
     check_add(UN_V, IN_A, 1.0, 49.0, 0.7, "f=49 Hz, I=In, PF=1.0");
@@ -146,10 +101,6 @@ fn frequency_49hz() {
 
 /// Checks the additional error at 51 Hz against the 0.7% frequency variation
 /// limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn frequency_51hz() {
     check_add(UN_V, IN_A, 1.0, 51.0, 0.7, "f=51 Hz, I=In, PF=1.0");
@@ -159,8 +110,6 @@ fn frequency_51hz() {
 
 /// Runs an accuracy test with harmonics in the current and returns the percent
 /// error versus the fundamental reference.
-///
-/// # Returns
 ///
 /// The percent error of the energy measured with harmonic current.
 fn run_harmonic_test() -> f64 {
@@ -198,10 +147,6 @@ fn run_harmonic_test() -> f64 {
 
 /// Checks the additional error from current harmonics (3rd=20%, 5th=10%,
 /// 7th=5%) against the 0.8% limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn harmonics_current() {
     check_add_custom(
@@ -215,10 +160,6 @@ fn harmonics_current() {
 
 /// Runs an accuracy test with a half-wave (DC component) current and returns
 /// the percent error versus the half-cycle reference.
-///
-/// # Returns
-///
-/// The percent error of the energy measured with half-wave current.
 fn run_half_wave_test() -> f64 {
     let fs = 8000.0;
     let cfg = metrology_insight::MetrologyInsightConfig {
@@ -255,10 +196,6 @@ fn run_half_wave_test() -> f64 {
 
 /// Checks the additional error from a DC component (half-wave current) against
 /// the 1.0% limit.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds the limit.
 #[test]
 fn half_wave_dc_component() {
     check_add_custom(
@@ -272,10 +209,6 @@ fn half_wave_dc_component() {
 
 /// Verifies that inverting the phase rotation does not affect per-phase energy
 /// summation, keeping the additional error below 0.2%.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds 0.2%.
 #[test]
 fn phase_rotation_inverted() {
     // Reference: balanced 3-phase
@@ -306,10 +239,6 @@ fn phase_rotation_inverted() {
 
 /// Verifies the additional error for a 3-phase voltage unbalance
 /// (L1=Un, L2=0.95Un, L3=1.05Un) stays below 0.5%.
-///
-/// # Panics
-///
-/// Panics if the additional error exceeds 0.5%.
 #[test]
 fn voltage_unbalance() {
     let balanced = PhaseTestPoint {

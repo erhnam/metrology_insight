@@ -28,8 +28,6 @@ pub enum TriggerSource {
 impl TriggerSource {
     /// Returns the short string name of this trigger source.
     ///
-    /// # Returns
-    ///
     /// A static string such as "MANUAL", "DIP" or "ALARM".
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -92,10 +90,6 @@ impl ChannelBuffer {
     }
 
     /// Writes one pre-trigger sample, wrapping around when the buffer is full.
-    ///
-    /// # Arguments
-    ///
-    /// * `val` - Sample to store in the pre-trigger ring buffer.
     #[inline(always)]
     pub fn feed_pre(&mut self, val: f32) {
         self.pre_trigger[self.pre_write_ptr] = val;
@@ -103,14 +97,6 @@ impl ChannelBuffer {
     }
 
     /// Writes one post-trigger sample, if the post-trigger buffer is not yet full.
-    ///
-    /// # Arguments
-    ///
-    /// * `val` - Sample to store in the post-trigger buffer.
-    ///
-    /// # Returns
-    ///
-    /// `true` once the post-trigger buffer is full (capture completed).
     #[inline(always)]
     pub fn feed_post(&mut self, val: f32) -> bool {
         if self.post_write_ptr < POST_TRIGGER_SAMPLES {
@@ -124,10 +110,6 @@ impl ChannelBuffer {
 
     /// Reads all samples in chronological order: oldest pre-trigger samples first, then
     /// post-trigger samples.
-    ///
-    /// # Arguments
-    ///
-    /// * `dest` - Destination slice receiving the ordered samples.
     pub fn read_all(&self, dest: &mut [f32]) {
         let mut idx = 0;
         // 1. Read pre-trigger buffer starting from the oldest sample (which is at the current write pointer)
@@ -185,20 +167,11 @@ impl Default for OscillographyManager {
 
 impl OscillographyManager {
     /// Creates an oscillography manager in the `Idle` state.
-    ///
-    /// # Returns
-    ///
-    /// A new `OscillographyManager`.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Arms the oscillography manager for a capture on the given phase mode and channel count.
-    ///
-    /// # Arguments
-    ///
-    /// * `phase_mode` - PhaseMode enum value from the system.
-    /// * `num_channels` - Number of channels to capture.
     pub fn arm(&mut self, phase_mode: u8, num_channels: u8) {
         self.state = OscillographyState::Armed;
         self.trigger_source = None;
@@ -211,11 +184,6 @@ impl OscillographyManager {
     }
 
     /// Triggers a capture immediately when armed, entering the capturing state.
-    ///
-    /// # Arguments
-    ///
-    /// * `source` - Source that caused the trigger.
-    /// * `now_ns` - Trigger timestamp in nanoseconds.
     pub fn force_trigger(&mut self, source: TriggerSource, now_ns: u64) {
         if self.state == OscillographyState::Armed {
             self.state = OscillographyState::Capturing;
@@ -229,13 +197,6 @@ impl OscillographyManager {
 
     /// Feeds one sample per channel into the manager; buffers pre-trigger samples while armed
     /// and post-trigger samples while capturing.
-    ///
-    /// # Arguments
-    ///
-    /// * `samples` - One sample per channel for this time step.
-    /// * `_now_ns` - Current timestamp (reserved for future use).
-    ///
-    /// # Returns
     ///
     /// `true` when a capture completed on this call.
     #[inline(always)]

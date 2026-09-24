@@ -29,14 +29,6 @@ pub struct TimeModel {
 
 impl TimeModel {
     /// Converts a kernel timestamp to UTC using the current drift factor.
-    ///
-    /// # Arguments
-    ///
-    /// * `ktime_ns` - Kernel timestamp in nanoseconds.
-    ///
-    /// # Returns
-    ///
-    /// The equivalent UTC timestamp in nanoseconds.
     pub fn ktime_to_utc(&self, ktime_ns: u64) -> u64 {
         let delta_ktime = (ktime_ns as i64) - (self.ktime_at_boot_ns as i64);
         let delta_utc = (delta_ktime as f64) * (self.drift_factor as f64);
@@ -44,15 +36,6 @@ impl TimeModel {
     }
 
     /// Creates a `TimeModel` from the current UTC and kernel times with drift factor 1.0.
-    ///
-    /// # Arguments
-    ///
-    /// * `utc_now_ns` - Current UTC timestamp in nanoseconds.
-    /// * `ktime_now_ns` - Current kernel timestamp in nanoseconds.
-    ///
-    /// # Returns
-    ///
-    /// A new `TimeModel` initialized from the given timestamps.
     pub fn init_from_system(utc_now_ns: u64, ktime_now_ns: u64) -> Self {
         TimeModel {
             utc_at_boot_ns: utc_now_ns,
@@ -63,11 +46,6 @@ impl TimeModel {
     }
 
     /// Recomputes the drift factor from a new UTC/kernel time pair.
-    ///
-    /// # Arguments
-    ///
-    /// * `utc_new_ns` - New UTC timestamp in nanoseconds.
-    /// * `ktime_new_ns` - New kernel timestamp in nanoseconds.
     pub fn recalibrate(&mut self, utc_new_ns: u64, ktime_new_ns: u64) {
         let delta_ktime = (ktime_new_ns as i64 - self.last_calibration_ktime_ns as i64) as f64;
         let delta_utc = (utc_new_ns as i64 - self.utc_at_boot_ns as i64) as f64;
@@ -310,8 +288,6 @@ pub enum SystemMode {
 impl SystemMode {
     /// Returns the number of conductors (active phases) for this system mode.
     ///
-    /// # Returns
-    ///
     /// The number of active phase conductors (1 to 4).
     pub const fn active_phases(self) -> usize {
         match self {
@@ -323,10 +299,6 @@ impl SystemMode {
     }
 
     /// Returns whether this system mode includes a neutral conductor.
-    ///
-    /// # Returns
-    ///
-    /// `true` for single-phase+N and three-phase 4-wire modes.
     pub const fn has_neutral(self) -> bool {
         matches!(self, SystemMode::SinglePhaseN | SystemMode::ThreePhase4Wire)
     }
@@ -403,12 +375,6 @@ pub struct MetrologyInsight {
 impl MetrologyInsight {
     /// Creates a `MetrologyInsight` from the given config and applies it to all sub-components.
     ///
-    /// # Arguments
-    ///
-    /// * `config` - Configuration to use for the new instance.
-    ///
-    /// # Returns
-    ///
     /// A fully initialized `MetrologyInsight` instance.
     pub fn new(config: MetrologyInsightConfig) -> Self {
         let mut instance = Self {
@@ -433,10 +399,6 @@ impl MetrologyInsight {
 
     /// Convenience setter that updates the nominal voltage in event_config, rvc_config and
     /// flicker config simultaneously, then propagates it via `apply_config()`.
-    ///
-    /// # Arguments
-    ///
-    /// * `voltage_v` - New nominal voltage in volts.
     pub fn set_nominal_voltage(&mut self, voltage_v: f32) {
         self.config.event_config.nominal_voltage = voltage_v;
         self.config.flicker.nominal_voltage = voltage_v;
@@ -453,12 +415,6 @@ pub enum MetrologyInsightSignalType {
 
 impl MetrologyInsightSignalType {
     /// Returns the minimum amplitude required for this signal type from the given config.
-    ///
-    /// # Arguments
-    ///
-    /// * `config` - Configuration containing the voltage/current minimum amplitudes.
-    ///
-    /// # Returns
     ///
     /// The minimum amplitude threshold in volts or amperes.
     pub fn min_amplitude(&self, config: &MetrologyInsightConfig) -> f32 {
@@ -536,8 +492,6 @@ pub struct PllState {
 impl MetrologyInsightSignal {
     /// Returns whether this signal is a current.
     ///
-    /// # Returns
-    ///
     /// `true` if the signal type is `Current`.
     pub fn is_current(&self) -> bool {
         matches!(self.signal_type, MetrologyInsightSignalType::Current)
@@ -545,18 +499,12 @@ impl MetrologyInsightSignal {
 
     /// Returns the valid portion of the captured real waveform as a slice.
     ///
-    /// # Returns
-    ///
     /// A slice of the stored samples up to `real_wave_len`.
     pub fn real_wave_slice(&self) -> &[f32] {
         &self.real_wave[..self.real_wave_len.min(MAX_SIGNAL_SAMPLES)]
     }
 
     /// Appends one ADC sample to the real waveform buffer if space is available.
-    ///
-    /// # Arguments
-    ///
-    /// * `val` - Sample value to append.
     pub fn push_real_sample(&mut self, val: f32) {
         if self.real_wave_len < MAX_SIGNAL_SAMPLES {
             self.real_wave[self.real_wave_len] = val;
@@ -622,8 +570,6 @@ impl Default for PhaseDirection {
 impl PhaseDirection {
     /// Returns a human-readable description of the phase direction.
     ///
-    /// # Returns
-    ///
     /// A static string describing the direction.
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -645,8 +591,6 @@ pub struct PhaseAngleMetrics {
 
 impl PhaseAngleMetrics {
     /// Returns the description of the classified phase direction.
-    ///
-    /// # Returns
     ///
     /// A static string describing the direction.
     pub fn direction_description(&self) -> &'static str {
@@ -683,8 +627,6 @@ pub struct ActiveEnergyMetrics {
 impl ActiveEnergyMetrics {
     /// Returns the total imported active energy (quadrants Q1 + Q4).
     ///
-    /// # Returns
-    ///
     /// The imported energy in Wh.
     pub fn imported(&self) -> f64 {
         self.q1 + self.q4
@@ -692,16 +634,12 @@ impl ActiveEnergyMetrics {
 
     /// Returns the total exported active energy (quadrants Q2 + Q3).
     ///
-    /// # Returns
-    ///
     /// The exported energy in Wh.
     pub fn exported(&self) -> f64 {
         self.q2 + self.q3
     }
 
     /// Returns the net active energy balance (imported minus exported).
-    ///
-    /// # Returns
     ///
     /// The net energy balance in Wh.
     pub fn balance(&self) -> f64 {
@@ -728,8 +666,6 @@ pub struct ReactiveEnergyMetrics {
 impl ReactiveEnergyMetrics {
     /// Returns the total inductive reactive energy (quadrants Q1 + Q3).
     ///
-    /// # Returns
-    ///
     /// The inductive energy in VARh.
     pub fn inductive(&self) -> f64 {
         self.q1 + self.q3
@@ -737,16 +673,12 @@ impl ReactiveEnergyMetrics {
 
     /// Returns the total capacitive reactive energy (quadrants Q2 + Q4).
     ///
-    /// # Returns
-    ///
     /// The capacitive energy in VARh.
     pub fn capacitive(&self) -> f64 {
         self.q2 + self.q4
     }
 
     /// Returns the net reactive energy balance (inductive minus capacitive).
-    ///
-    /// # Returns
     ///
     /// The net reactive energy balance in VARh.
     pub fn balance(&self) -> f64 {
@@ -821,8 +753,6 @@ pub struct PqAggregationRecord {
 impl PqAggregationRecord {
     /// Returns a `PqAggregationRecord` with all fields zeroed.
     ///
-    /// # Returns
-    ///
     /// An empty aggregation record.
     pub fn empty() -> Self {
         Self {
@@ -869,10 +799,6 @@ impl PqAggregationRecord {
     }
 
     /// Serializes the record into a fixed 256-byte little-endian buffer.
-    ///
-    /// # Returns
-    ///
-    /// A 256-byte array with all fields packed in a fixed layout.
     pub fn to_bytes(&self) -> [u8; 256] {
         let mut buf = [0u8; 256];
         let mut off = 0usize;
@@ -954,12 +880,6 @@ impl PqAggregationRecord {
     }
 
     /// Deserializes a record from a fixed 256-byte little-endian buffer.
-    ///
-    /// # Arguments
-    ///
-    /// * `bytes` - The 256-byte buffer produced by `to_bytes`.
-    ///
-    /// # Returns
     ///
     /// The reconstructed `PqAggregationRecord`.
     pub fn from_bytes(bytes: &[u8; 256]) -> Self {

@@ -44,13 +44,6 @@ fn symmetrical_components(
 
 /// Computes voltage unbalance via Fortescue (§5.7).
 ///
-/// # Arguments
-///
-/// * `v_rms` - RMS voltage of each phase (L1, L2, L3) in volts.
-/// * `v_angles_deg` - Phase angle of each phase voltage in degrees.
-///
-/// # Returns
-///
 /// An `UnbalanceMetrics` struct populated with the voltage symmetrical components and ratios.
 pub fn calculate_voltage_unbalance(v_rms: &[f32; 3], v_angles_deg: &[f32; 3]) -> UnbalanceMetrics {
     if v_rms[0] <= 0.0 && v_rms[1] <= 0.0 && v_rms[2] <= 0.0 {
@@ -81,13 +74,6 @@ pub fn calculate_voltage_unbalance(v_rms: &[f32; 3], v_angles_deg: &[f32; 3]) ->
 }
 
 /// Computes current unbalance via Fortescue (§5.13.6).
-///
-/// # Arguments
-///
-/// * `i_rms` - RMS current of each phase (L1, L2, L3) in amperes.
-/// * `i_angles_deg` - Phase angle of each phase current in degrees.
-///
-/// # Returns
 ///
 /// An `UnbalanceMetrics` struct populated with the current symmetrical components and ratios.
 pub fn calculate_current_unbalance(i_rms: &[f32; 3], i_angles_deg: &[f32; 3]) -> UnbalanceMetrics {

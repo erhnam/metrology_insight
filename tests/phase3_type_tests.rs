@@ -15,10 +15,6 @@ const MIN_CYCLES: u32 = 1000;
 /// Verifies the expanded measurement uncertainty (k=2) meets the Class 1
 /// limit of 0.33% using Type A (repeated runs) and Type B (component
 /// tolerance) uncertainty estimation.
-///
-/// # Panics
-///
-/// Panics if the expanded uncertainty is not below 0.33%.
 #[test]
 fn uncertainty_type_a() {
     let n = 10;
@@ -71,10 +67,6 @@ fn uncertainty_type_a() {
 
 /// Verifies the energy accumulator scaling factor by checking that the error
 /// between measured and reference energy is near zero.
-///
-/// # Panics
-///
-/// Panics if the measured energy deviates from the reference by more than 1%.
 #[test]
 fn meter_constant_scaling() {
     // Verify that the energy accumulator scales correctly by measuring
@@ -93,10 +85,6 @@ fn meter_constant_scaling() {
 
 /// Verifies that no energy is accumulated under no-load conditions
 /// (reference voltage applied, zero current).
-///
-/// # Panics
-///
-/// Panics if any energy is accumulated with zero load current.
 #[test]
 fn no_load_zero_energy() {
     let v_test = 1.15 * UN_V; // 264.5 V
@@ -112,10 +100,6 @@ fn no_load_zero_energy() {
 }
 
 /// Verifies that a current below the noise gate (4 mA) accumulates no energy.
-///
-/// # Panics
-///
-/// Panics if energy is accumulated when the current is below the noise gate.
 #[test]
 fn noise_below_threshold_no_energy() {
     // Current well below noise gate (ist_a * 0.4 = 4 mA) should not
@@ -136,8 +120,6 @@ fn noise_below_threshold_no_energy() {
 
 /// Returns the starting current Ist for a Class 1 CT-connected meter.
 ///
-/// # Returns
-///
 /// The starting current (10 mA) as 0.2% of the reference current In.
 fn ist() -> f32 {
     0.002 * IN_A // 10 mA for CT connection (Class 1)
@@ -145,18 +127,12 @@ fn ist() -> f32 {
 
 /// Returns the minimum current Imin for a Class 1 CT-connected meter.
 ///
-/// # Returns
-///
 /// The minimum current (0.10 A) as 2% of the reference current In.
 fn imin() -> f32 {
     0.02 * IN_A // 0.10 A for CT connection (Class 1)
 }
 
 /// Verifies that the meter registers energy at the starting current Ist.
-///
-/// # Panics
-///
-/// Panics if no energy is registered at the starting current.
 #[test]
 fn starting_current_registers() {
     let r = run_accuracy_test(UN_V, ist(), 1.0, FN_HZ, MIN_CYCLES);
@@ -169,10 +145,6 @@ fn starting_current_registers() {
 
 /// Verifies that operation slightly below the starting current produces a
 /// reasonably small error rather than anomalous energy registration.
-///
-/// # Panics
-///
-/// Panics if the error at 0.9×Ist exceeds 10%.
 #[test]
 fn below_starting_current_reasonable() {
     let i_below = 0.9 * ist(); // 9 mA
@@ -191,10 +163,6 @@ fn below_starting_current_reasonable() {
 
 /// Verifies measurement repeatability across 10 identical runs, requiring a
 /// standard deviation below 0.2%.
-///
-/// # Panics
-///
-/// Panics if the standard deviation of the 10 runs is not below 0.2%.
 #[test]
 fn repeatability_10_measurements() {
     let n = 10;
@@ -218,15 +186,6 @@ fn repeatability_10_measurements() {
 
 /// Runs a rapid current step test (low current then high current) and returns
 /// the percent error of measured energy versus the reference.
-///
-/// # Arguments
-///
-/// * `low_a` - RMS current of the low-current phase.
-/// * `high_a` - RMS current of the high-current phase (abrupt step).
-/// * `cycles_low` - Number of cycles applied at the low current.
-/// * `cycles_high` - Number of cycles applied at the high current.
-///
-/// # Returns
 ///
 /// The percent error between measured and reference energy over the whole run.
 fn run_step_test(low_a: f32, high_a: f32, cycles_low: u32, cycles_high: u32) -> f64 {
@@ -284,10 +243,6 @@ fn run_step_test(low_a: f32, high_a: f32, cycles_low: u32, cycles_high: u32) -> 
 }
 
 /// Verifies accuracy when the current steps abruptly from Imin to Imax.
-///
-/// # Panics
-///
-/// Panics if the step error exceeds 2%.
 #[test]
 fn step_imin_to_imax() {
     let i_low = imin(); // 0.10 A (CT)
@@ -297,10 +252,6 @@ fn step_imin_to_imax() {
 }
 
 /// Verifies accuracy when the current steps abruptly from Imax to Imin.
-///
-/// # Panics
-///
-/// Panics if the step error exceeds 2%.
 #[test]
 fn step_imax_to_imin() {
     let i_low = imin(); // 0.10 A (CT)

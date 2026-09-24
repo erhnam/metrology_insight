@@ -22,12 +22,6 @@ pub enum Operation {
 impl Operation {
     /// Maps an operation name string to the corresponding `Operation`.
     ///
-    /// # Arguments
-    ///
-    /// * `s` - String such as "absolute", "gradient" or "absGrad".
-    ///
-    /// # Returns
-    ///
     /// The matching `Operation`, or `Operation::Value` for unknown strings.
     pub fn parse_str(s: &str) -> Self {
         match s {
@@ -52,12 +46,6 @@ pub enum Group {
 
 impl Group {
     /// Maps a group name string to the corresponding `Group`.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - String such as "voltage", "current", "power" or "a_energy".
-    ///
-    /// # Returns
     ///
     /// The matching `Group`, or `None` if the string is unknown.
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -91,12 +79,6 @@ pub enum Element {
 
 impl Element {
     /// Maps an element name string to the corresponding `Element`.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - String such as "TRMS", "Frequency" or "THD".
-    ///
-    /// # Returns
     ///
     /// The matching `Element`, or `None` if the string is unknown.
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -134,13 +116,6 @@ pub enum Condition {
 impl Condition {
     /// Checks whether `value` satisfies this condition against `threshold`.
     ///
-    /// # Arguments
-    ///
-    /// * `value` - The value to evaluate.
-    /// * `threshold` - The threshold to compare against.
-    ///
-    /// # Returns
-    ///
     /// `true` if the comparison holds.
     fn check(self, value: f32, threshold: f32) -> bool {
         match self {
@@ -154,12 +129,6 @@ impl Condition {
     }
 
     /// Maps a condition name string to the corresponding `Condition`.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - String such as "gt", "lt_eq" or "equal".
-    ///
-    /// # Returns
     ///
     /// The matching `Condition`, or `None` if the string is unknown.
     pub fn parse_str(s: &str) -> Option<Self> {
@@ -208,15 +177,6 @@ impl Detector {
     /// Creates a new `Detector`, interpreting `hyst_abs` as the absolute value of the
     /// hysteresis (e.g. 2.0 V or 0.1 Hz passed directly from the JSON).
     ///
-    /// # Arguments
-    ///
-    /// * `condition` - Comparison condition for the alarm.
-    /// * `th` - Alarm threshold.
-    /// * `hyst_abs` - Absolute hysteresis band used to derive the OFF threshold.
-    /// * `debounce` - Debounce count applied in both directions.
-    ///
-    /// # Returns
-    ///
     /// A `Detector` initialized in the `Off` state.
     pub fn new(condition: Condition, th: f32, hyst_abs: f32, debounce: u16) -> Self {
         let h = hyst_abs;
@@ -245,27 +205,12 @@ impl Detector {
 
     /// Processes a raw value using the `Value` operation and optionally updates the status.
     ///
-    /// # Arguments
-    ///
-    /// * `raw_value` - Raw metrological value to evaluate.
-    /// * `update_status` - Whether the internal status may change to `On`.
-    ///
-    /// # Returns
-    ///
     /// A tuple of whether a transition occurred and the current `Status`.
     pub fn process(&mut self, raw_value: f32, update_status: bool) -> (bool, Status) {
         self.process_with_op(raw_value, Operation::Value, update_status)
     }
 
     /// Processes a raw value with the given operation and optionally updates the status.
-    ///
-    /// # Arguments
-    ///
-    /// * `raw_value` - Raw metrological value to evaluate.
-    /// * `op` - Operation applied to the raw value before comparing.
-    /// * `update_status` - Whether the internal status may change to `On`.
-    ///
-    /// # Returns
     ///
     /// A tuple of whether a transition occurred and the current `Status`.
     pub fn process_with_op(
@@ -353,13 +298,6 @@ pub struct ValueKey {
 
 /// Extracts the metrological value addressed by `key` from the socket.
 ///
-/// # Arguments
-///
-/// * `socket` - Socket holding the measured phase and energy data.
-/// * `key` - Phase, group and element to read.
-///
-/// # Returns
-///
 /// The extracted value as `f32`, or `None` if the phase is out of range or the
 /// group/element combination is not supported.
 pub fn extract_value(socket: &MetrologyInsightSocket, key: ValueKey) -> Option<f32> {
@@ -409,8 +347,6 @@ pub struct DetectorManager {
 impl DetectorManager {
     /// Creates a `DetectorManager` with no detectors allocated.
     ///
-    /// # Returns
-    ///
     /// A manager with all slots empty.
     pub fn new() -> Self {
         Self {
@@ -419,17 +355,6 @@ impl DetectorManager {
     }
 
     /// Allocates a new detector in the first free slot.
-    ///
-    /// # Arguments
-    ///
-    /// * `key` - Value key the detector monitors.
-    /// * `op` - Operation applied to the raw value.
-    /// * `condition` - Alarm comparison condition.
-    /// * `th` - Alarm threshold.
-    /// * `hyst_abs` - Absolute hysteresis band.
-    /// * `debounce` - Debounce count in both directions.
-    ///
-    /// # Returns
     ///
     /// The slot index of the new detector, or `None` if all slots are occupied.
     pub fn create(
@@ -447,10 +372,6 @@ impl DetectorManager {
     }
 
     /// Frees the detector at `id`, if it is a valid slot index.
-    ///
-    /// # Arguments
-    ///
-    /// * `id` - Slot index to free.
     pub fn delete(&mut self, id: usize) {
         if id < DETECTOR_MAX {
             self.slots[id] = None;
@@ -459,11 +380,6 @@ impl DetectorManager {
 
     /// Evaluates all detectors against the current socket values and invokes `on_event`
     /// on every status transition.
-    ///
-    /// # Arguments
-    ///
-    /// * `socket` - Socket with the current measured values.
-    /// * `on_event` - Callback invoked with the detector id and new `Status` on transition.
     pub fn evaluate<F>(&mut self, socket: &MetrologyInsightSocket, mut on_event: F)
     where
         F: FnMut(usize, Status),

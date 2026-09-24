@@ -8,18 +8,6 @@
 /// Writes up to `target_points` interpolated samples into `output`, applying an
 /// optional phase delay.
 ///
-/// # Arguments
-///
-/// * `input` — Source signal samples.
-/// * `_fs` — Sampling rate in Hz (currently unused).
-/// * `_freq_est` — Estimated fundamental frequency in Hz (currently unused).
-/// * `_num_cycles` — Number of cycles (currently unused).
-/// * `target_points` — Desired number of output points.
-/// * `phase_delay_us` — Phase delay in microseconds, applied as an output offset.
-/// * `output` — Mutable slice receiving the resampled points.
-///
-/// # Returns
-///
 /// The number of points written to `output`.
 pub fn resample_synchronous_into(
     input: &[f32],
@@ -54,19 +42,6 @@ pub fn resample_synchronous_into(
 }
 
 /// Resample a signal into a new vector of `target_points` samples.
-///
-/// # Arguments
-///
-/// * `input` — Source signal samples.
-/// * `fs` — Sampling rate in Hz.
-/// * `freq_est` — Estimated fundamental frequency in Hz.
-/// * `num_cycles` — Number of cycles.
-/// * `target_points` — Desired number of output points.
-/// * `phase_delay_us` — Phase delay in microseconds.
-///
-/// # Returns
-///
-/// A new vector containing the resampled points.
 #[cfg(feature = "alloc")]
 pub fn resample_synchronous(
     input: &[f32],

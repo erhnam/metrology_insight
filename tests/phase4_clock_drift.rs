@@ -14,14 +14,6 @@ use metrology_insight::types::TimeModel;
 /// verifies that `ktime_to_utc` keeps the corrected time within tolerance of
 /// true UTC across the whole interval.
 ///
-/// # Arguments
-///
-/// * `crystal_ppm` - Crystal drift in parts per million (positive = fast clock).
-/// * `tolerance_s` - Maximum allowed drift-corrected error in seconds.
-///
-/// # Panics
-///
-/// Panics if the maximum drift error over the simulated 24 hours exceeds the
 /// tolerance.
 fn run_drift_test(crystal_ppm: f64, tolerance_s: f64) {
     let duration_s = 24.0 * 3600.0; // 24 hours
@@ -89,10 +81,6 @@ fn run_drift_test(crystal_ppm: f64, tolerance_s: f64) {
 
 /// Verifies that with no crystal drift the drift correction error stays
 /// within 1 ms over 24 hours.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 1 ms.
 #[test]
 fn test_no_drift() {
     run_drift_test(0.0, 0.001);
@@ -100,10 +88,6 @@ fn test_no_drift() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 10 ppm fast.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_plus_10_ppm() {
     run_drift_test(10.0, 0.5);
@@ -111,10 +95,6 @@ fn test_plus_10_ppm() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 10 ppm slow.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_minus_10_ppm() {
     run_drift_test(-10.0, 0.5);
@@ -122,10 +102,6 @@ fn test_minus_10_ppm() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 20 ppm fast.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_plus_20_ppm() {
     run_drift_test(20.0, 0.5);
@@ -133,10 +109,6 @@ fn test_plus_20_ppm() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 20 ppm slow.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_minus_20_ppm() {
     run_drift_test(-20.0, 0.5);
@@ -144,10 +116,6 @@ fn test_minus_20_ppm() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 50 ppm fast.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_plus_50_ppm() {
     run_drift_test(50.0, 0.5);
@@ -155,10 +123,6 @@ fn test_plus_50_ppm() {
 
 /// Verifies drift correction keeps the error below 0.5 s for a crystal running
 /// 50 ppm slow.
-///
-/// # Panics
-///
-/// Panics if the drift error exceeds 0.5 s.
 #[test]
 fn test_minus_50_ppm() {
     run_drift_test(-50.0, 0.5);
@@ -168,9 +132,6 @@ fn test_minus_50_ppm() {
 /// post-recalibration error below 10 ms and the overall 24-hour error below
 /// 1.5 s for a 30 ppm crystal.
 ///
-/// # Panics
-///
-/// Panics if the post-recalibration error is not below 10 ms or the maximum
 /// error is not below 1.5 s.
 #[test]
 fn test_recalibrate_at_12h() {

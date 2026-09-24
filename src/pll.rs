@@ -23,14 +23,6 @@ pub const PLL_ERROR_ACCUM_THRESHOLD: f32 = 0.1;
 ///
 /// Adjusts the estimated frequency and phase per sample, then updates the lock
 /// status and the 10-second frequency average.
-///
-/// # Arguments
-///
-/// * `state` — Mutable PLL state to update.
-/// * `samples` — Signal samples to process.
-/// * `fs` — Sampling rate in Hz.
-/// * `nominal_freq` — Nominal system frequency in Hz.
-/// * `cfg` — PLL configuration parameters.
 pub fn update_pll(
     state: &mut PllState,
     samples: &[f32],

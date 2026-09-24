@@ -29,15 +29,6 @@ const MAGNITUDES_LEN: usize = FFT_RESOLUTION / 2 + 1; // 257
 const RAW_BUFFER_LEN: usize = 512;
 
 /// Resamples a signal from its original length to a new length via linear interpolation.
-///
-/// # Arguments
-///
-/// * `signal` - Input time-domain samples.
-/// * `new_len` - Desired output length.
-///
-/// # Returns
-///
-/// A new vector of `new_len` linearly interpolated samples.
 pub fn resample_signal(signal: &[f32], new_len: usize) -> alloc::vec::Vec<f32> {
     let n = signal.len();
     let step = n as f32 / new_len as f32;
@@ -57,14 +48,6 @@ pub fn resample_signal(signal: &[f32], new_len: usize) -> alloc::vec::Vec<f32> {
 }
 
 /// Calculates harmonic percentages normalized to H1 (100%) and the Total Harmonic Distortion (THD %).
-///
-/// # Arguments
-/// * `magnitudes` - Slice containing absolute frequency magnitudes.
-/// * `fund_bin` - Index of the fundamental frequency bin (H1).
-/// * `fundamental_mag` - Absolute magnitude of the fundamental frequency.
-///
-/// # Returns
-/// * A tuple containing an array of harmonic percentages (`[H1, H2, ..., Hn]`) and the THD percentage.
 fn calculate_harmonics_and_thd(
     magnitudes: &[f32],
     fund_bin: usize,
@@ -97,13 +80,6 @@ fn calculate_harmonics_and_thd(
 }
 
 /// Computes spectral magnitudes from time-domain signal samples using 512-point Real FFT.
-///
-/// # Arguments
-/// * `sync_buffer` - Mutable reference to the time-domain input sample buffer (FFT_RESOLUTION size).
-/// * `magnitudes` - Output buffer to store scaled absolute real magnitudes.
-///
-/// # Returns
-/// * `Option` containing the tuple of harmonic array percentages and THD percentage if fundamental is valid.
 fn compute_magnitudes(
     sync_buffer: &mut [f32; FFT_RESOLUTION],
     magnitudes: &mut [f32; MAGNITUDES_LEN],
@@ -123,10 +99,9 @@ fn compute_magnitudes(
             / (FFT_RESOLUTION as f32);
 
     // Bins 1..N (AC components and higher harmonics)
-    for i in 1..n {
-        let mag_raw =
-            crate::math::sqrt(spectrum[i].re * spectrum[i].re + spectrum[i].im * spectrum[i].im);
-        magnitudes[i] = mag_raw * scale_factor;
+    for (mag, spec) in magnitudes[1..n].iter_mut().zip(&spectrum[1..n]) {
+        let mag_raw = crate::math::sqrt(spec.re * spec.re + spec.im * spec.im);
+        *mag = mag_raw * scale_factor;
     }
 
     // 3. Search for the fundamental frequency bin.
@@ -184,14 +159,6 @@ pub struct FftCache {
 
 impl FftCache {
     /// Creates a new `FftCache` with zeroed raw, sync and magnitude buffers.
-    ///
-    /// # Arguments
-    ///
-    /// * `_fft_len` - Unused; kept for API compatibility. The FFT size is fixed by `FFT_RESOLUTION`.
-    ///
-    /// # Returns
-    ///
-    /// A new `FftCache` instance.
     pub fn new(_fft_len: usize) -> Self {
         Self {
             raw_buffer: Box::new([0.0; RAW_BUFFER_LEN]),
@@ -305,14 +272,6 @@ pub struct InterharmonicAccumulator {
 impl InterharmonicAccumulator {
     /// Creates a new accumulator, precomputing the Goertzel coefficients for the
     /// 49 interharmonic subgroup center frequencies at the given sync sample rate.
-    ///
-    /// # Arguments
-    ///
-    /// * `fs_sync` - Sample rate (Hz) of the sync-resampled data.
-    ///
-    /// # Returns
-    ///
-    /// A new `InterharmonicAccumulator` with zeroed filter state.
     pub fn new(fs_sync: f32) -> Self {
         let mut coeffs = [0.0; INTERHARMONIC_GROUPS];
         for (i, c) in coeffs.iter_mut().enumerate() {
@@ -344,8 +303,6 @@ impl InterharmonicAccumulator {
     }
 
     /// Returns whether enough samples have been accumulated for a valid computation.
-    ///
-    /// # Returns
     ///
     /// `true` once `FFT_RESOLUTION × CYCLES_FOR_INTERHARMONIC` samples have been pushed.
     pub fn is_ready(&self) -> bool {
@@ -388,11 +345,10 @@ impl InterharmonicAccumulator {
 }
 
 /// Removes the DC component by subtracting the mean value from every sample.
-///
-/// # Arguments
-///
-/// * `signal` - Samples to subtract the mean from, modified in place.
 fn remove_mean(signal: &mut [f32]) {
+    if signal.is_empty() {
+        return;
+    }
     let mean = signal.iter().sum::<f32>() / signal.len() as f32;
     for sample in signal.iter_mut() {
         *sample -= mean;
@@ -404,15 +360,6 @@ mod tests {
     use super::*;
 
     /// Generates `n` samples of a sine wave of the given frequency, sample rate and amplitude.
-    ///
-    /// # Arguments
-    ///
-    /// * `freq` - Sine wave frequency in Hz.
-    /// * `fs` - Sample rate in Hz.
-    /// * `n` - Number of samples to generate.
-    /// * `amp` - Peak amplitude of the sine wave.
-    ///
-    /// # Returns
     ///
     /// A vector of `n` sine wave samples.
     fn generate_sine(freq: f32, fs: f32, n: usize, amp: f32) -> alloc::vec::Vec<f32> {

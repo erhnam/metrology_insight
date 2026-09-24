@@ -6,10 +6,6 @@
 /// Fill `window` with a Hann window function in-place.
 ///
 /// Coefficients: w[i] = 0.5 × (1 − cos(2π × i / (N−1))).
-///
-/// # Arguments
-///
-/// * `window` — Mutable slice to be filled with window coefficients.
 pub fn hann(window: &mut [f32]) {
     let n = window.len();
     for (i, w) in window.iter_mut().enumerate() {
@@ -25,10 +21,6 @@ pub fn hann(window: &mut [f32]) {
 ///
 /// This window provides good sidelobe suppression (−92 dB) at the
 /// cost of a wider main lobe. Recommended for harmonic analysis.
-///
-/// # Arguments
-///
-/// * `window` — Mutable slice to be filled with window coefficients.
 pub fn blackman_harris(window: &mut [f32]) {
     let n = window.len();
     let a0 = 0.35875;

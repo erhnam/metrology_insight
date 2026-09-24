@@ -10,22 +10,12 @@ use num_complex::Complex;
 
 /// Fortescue factor a = e^(j·120°).
 ///
-/// # Returns
-///
 /// The complex operator a = e^(j·120°).
 fn a() -> Complex<f32> {
     Complex::from_polar(1.0, (120.0_f32).to_radians())
 }
 
 /// Computes the symmetrical components from three phasors.
-///
-/// # Arguments
-///
-/// * `pa` - Phasor of phase A.
-/// * `pb` - Phasor of phase B.
-/// * `pc` - Phasor of phase C.
-///
-/// # Returns
 ///
 /// A tuple with the zero, positive, and negative sequence components.
 fn symmetrical_components(
@@ -43,13 +33,6 @@ fn symmetrical_components(
 
 /// Creates a phasor from magnitude and angle.
 ///
-/// # Arguments
-///
-/// * `mag` - Magnitude of the phasor.
-/// * `angle_rad` - Phase angle in radians.
-///
-/// # Returns
-///
 /// The complex phasor with the given magnitude and angle.
 fn phasor(mag: f32, angle_rad: f32) -> Complex<f32> {
     Complex::from_polar(mag, angle_rad)
@@ -58,9 +41,6 @@ fn phasor(mag: f32, angle_rad: f32) -> Complex<f32> {
 /// Verifies that a balanced positive (direct) phase sequence yields a dominant
 /// positive component of ~230 V and a negligible negative component.
 ///
-/// # Panics
-///
-/// Panics if the positive magnitude deviates from 230 V or the negative
 /// magnitude is not negligible.
 #[test]
 fn test_positive_sequence_dominant() {
@@ -87,9 +67,6 @@ fn test_positive_sequence_dominant() {
 /// Verifies that a balanced negative (inverse) phase sequence yields a dominant
 /// negative component of ~230 V and a negligible positive component.
 ///
-/// # Panics
-///
-/// Panics if the negative magnitude deviates from 230 V or the positive
 /// magnitude is not negligible.
 #[test]
 fn test_negative_sequence_dominant() {
@@ -116,9 +93,6 @@ fn test_negative_sequence_dominant() {
 /// Verifies that three in-phase phasors yield a dominant zero-sequence
 /// component of ~230 V with negligible positive and negative components.
 ///
-/// # Panics
-///
-/// Panics if the zero magnitude deviates from 230 V or the positive/negative
 /// magnitudes are not negligible.
 #[test]
 fn test_zero_sequence_dominant() {
@@ -149,9 +123,6 @@ fn test_zero_sequence_dominant() {
 /// Verifies that for an unbalanced load the positive component still dominates
 /// and stays above 200 V.
 ///
-/// # Panics
-///
-/// Panics if the positive component does not dominate the negative one or is
 /// below 200 V.
 #[test]
 fn test_unbalanced_sequence_identification() {
@@ -180,9 +151,6 @@ fn test_unbalanced_sequence_identification() {
 /// Verifies that swapping phases L1 and L2 inverts the sequence: the positive
 /// component becomes ~0 and the negative component ~230 V.
 ///
-/// # Panics
-///
-/// Panics if the positive component is not near zero or the negative component
 /// deviates from 230 V.
 #[test]
 fn test_phase_swap_l1_l2() {

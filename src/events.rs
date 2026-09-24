@@ -17,8 +17,6 @@ pub enum PqEventType {
 impl PqEventType {
     /// Returns the string name of this event type.
     ///
-    /// # Returns
-    ///
     /// A static string such as "Dip", "Swell", "Interruption" or "None".
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -81,17 +79,6 @@ pub struct PowerQualityEventDetector {
 
 impl PowerQualityEventDetector {
     /// Processes one half-cycle RMS sample and updates any active power quality event.
-    ///
-    /// # Arguments
-    ///
-    /// * `phase_index` - Index of the phase this sample belongs to.
-    /// * `urms_half` - Half-cycle RMS voltage of the sample.
-    /// * `now_ns` - Current timestamp in nanoseconds.
-    /// * `config` - Threshold and hysteresis configuration.
-    ///
-    /// # Returns
-    ///
-    /// The just-completed `PqEventRecord`, or `None` when no event finished on this call.
     pub fn process_half_cycle(
         &mut self,
         phase_index: u8,

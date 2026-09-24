@@ -12,11 +12,6 @@ const PHASE_LABELS: [&str; 4] = ["A", "B", "C", "N"];
 
 /// Logs the voltage signal values (peak, RMS, half-cycle RMS and flicker) for each active
 /// phase, plus the PLL frequency.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured phase data.
-/// * `active` - Number of active phases to print.
 pub fn print_voltage_signal(data: &MetrologyInsightSocket, active: usize) {
     log::info!("Voltage:");
     for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
@@ -41,11 +36,6 @@ pub fn print_voltage_signal(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the current RMS and half-cycle RMS for each active phase.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured phase data.
-/// * `active` - Number of active phases to print.
 pub fn print_current_signal(data: &MetrologyInsightSocket, active: usize) {
     log::info!("Current:");
     for (i, phase) in data.phases.iter().enumerate().take(active) {
@@ -59,11 +49,6 @@ pub fn print_current_signal(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the voltage and current THD plus harmonic components for each active phase.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured phase data.
-/// * `active` - Number of active phases to print.
 pub fn print_harmonics(data: &MetrologyInsightSocket, active: usize) {
     for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
         log::info!("Voltage Harmonics (Phase {}):", PHASE_LABELS[i]);
@@ -94,10 +79,6 @@ pub fn print_harmonics(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the total active, reactive and apparent power and the power factor.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured power data.
 pub fn print_power(data: &MetrologyInsightSocket) {
     log::info!("Power (Total):");
     log::info!("  Active: {:.3} W", data.power_metrics_total.real_power);
@@ -114,11 +95,6 @@ pub fn print_power(data: &MetrologyInsightSocket) {
 
 /// Logs the current-to-voltage, voltage and current angles and the phase direction for each
 /// active phase.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured phase data.
-/// * `active` - Number of active phases to print.
 pub fn print_phase_angle(data: &MetrologyInsightSocket, active: usize) {
     for (i, phase) in data.phases.iter().enumerate().take(active.min(3)) {
         log::info!("Phase Angle (Phase {}):", PHASE_LABELS[i]);
@@ -136,11 +112,6 @@ pub fn print_phase_angle(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the inter-phase voltage angles A-B, B-C and C-A for three-phase systems.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured phase data.
-/// * `active` - Number of active phases to print.
 pub fn print_interphase_angle(data: &MetrologyInsightSocket, active: usize) {
     if active >= 3 {
         log::info!("Inter-phase Angles:");
@@ -160,10 +131,6 @@ pub fn print_interphase_angle(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the imported/exported active energy, balance and quadrant energies.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured energy data.
 pub fn print_active_energy(data: &MetrologyInsightSocket) {
     log::info!("Active Energy:");
     log::info!(
@@ -194,10 +161,6 @@ pub fn print_active_energy(data: &MetrologyInsightSocket) {
 }
 
 /// Logs the capacitive/inductive reactive energy, balance and quadrant energies.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured energy data.
 pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
     log::info!("Reactive Energy:");
     log::info!(
@@ -232,11 +195,6 @@ pub fn print_reactive_energy(data: &MetrologyInsightSocket) {
 
 /// Logs the voltage and current unbalance ratios and the zero/positive/negative sequence
 /// currents for three-phase systems.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured unbalance data.
-/// * `active` - Number of active phases to print.
 pub fn print_unbalance(data: &MetrologyInsightSocket, active: usize) {
     if active >= 3 {
         log::info!("Unbalance:");
@@ -260,30 +218,20 @@ pub fn print_unbalance(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs the accumulated dip, swell, interruption and RVC counts, plus the maximum RVC ΔU.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured event data.
-/// * `active` - Number of active phases to print.
 pub fn print_events(data: &MetrologyInsightSocket, active: usize) {
     if active == 0 {
         return;
     }
-    let mut dip = 0u32;
-    let mut swell = 0u32;
-    let mut interrupt = 0u32;
-    let mut rvc = 0u32;
-    let mut max_delta = 0.0f32;
-    for i in 0..active.min(3) {
-        dip += data.phases[i].event_detector.dip_count;
-        swell += data.phases[i].event_detector.swell_count;
-        interrupt += data.phases[i].event_detector.interruption_count;
-        rvc += data.phases[i].rvc_detector.rvc_count;
-        let last = &data.phases[i].rvc_detector.last_completed_rvc;
-        if last.delta_u_max_pct > max_delta {
-            max_delta = last.delta_u_max_pct;
-        }
-    }
+    let phases = &data.phases[..active.min(3)];
+    let dip: u32 = phases.iter().map(|p| p.event_detector.dip_count).sum();
+    let swell: u32 = phases.iter().map(|p| p.event_detector.swell_count).sum();
+    let interrupt: u32 = phases.iter().map(|p| p.event_detector.interruption_count).sum();
+    let rvc: u32 = phases.iter().map(|p| p.rvc_detector.rvc_count).sum();
+    let max_delta = phases
+        .iter()
+        .map(|p| p.rvc_detector.last_completed_rvc.delta_u_max_pct)
+        .fold(0.0f32, f32::max);
+
     log::info!("Events:");
     log::info!(
         "  Dips: {}  Swells: {}  Interruptions: {}  RVC: {}\n",
@@ -298,11 +246,6 @@ pub fn print_events(data: &MetrologyInsightSocket, active: usize) {
 }
 
 /// Logs all metrology sections: signals, harmonics, power, angles, unbalance, events and energies.
-///
-/// # Arguments
-///
-/// * `data` - Socket with the measured metrology data.
-/// * `active_phases` - Number of active phases to print.
 pub fn print_all(data: &MetrologyInsightSocket, active_phases: usize) {
     print_voltage_signal(data, active_phases);
     print_current_signal(data, active_phases);
