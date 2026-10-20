@@ -63,12 +63,16 @@ const N_SAMPLES: usize = 160;
 pub const ADC_FULL_SCALE_COUNTS: f32 = 8388608.0;
 
 /// Voltage input scaling factor to ADC counts (LSB/V).
-/// Derived from: (ADC_FSR_COUNTS / Vref) / VRatio = (8388608 / 1.2) / 410.09 (~17047.016 LSB/V).
-pub const VIN_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / 410.09;
+/// Derived from: (ADC_FSR_COUNTS / Vref) / VRatio = (8388608 / 1.2) / 661.0 (~10575.44 LSB/V).
+/// VRatio 661.0 matches the final PCB resistive divider: (3*330k + 1.5k) / 1.5k.
+/// NOTE: the old perfboard used 410.09 (different R_low); do not use that value here.
+pub const VIN_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / 661.0;
 
 /// Current input scaling factor to ADC counts (LSB/A).
-/// Derived from: (ADC_FSR_COUNTS / Vref) / (CT_Ratio / Burden_Resistor_Ratio) = (8388608 / 1.2) / (2000.0 / 100.0) (~349525.33 LSB/A).
-pub const AMPS_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / (2000.0 / 100.0);
+/// Derived from: (ADC_FSR_COUNTS / Vref) / (CT_Ratio / Burden) = (8388608 / 1.2) / (2000.0 / 15.0) (~52428.80 LSB/A).
+/// Burden 15.0 ohm matches the final PCB (100 ohm was the old perfboard value).
+/// Keeps 100 A RMS (1.06 Vpk at the ADC) inside the +/-1.2 V full-scale range.
+pub const AMPS_TO_COUNTS: f32 = (ADC_FULL_SCALE_COUNTS / 1.2) / (2000.0 / 15.0);
 
 // =========================================================================
 // SIMULATION FEATURE SWITCHES
